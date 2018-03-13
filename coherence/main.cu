@@ -21,15 +21,38 @@ size_t cpu_touch(char *c, const size_t e, const size_t n)
   return (n / e);
 }
 
-__global__ void gpu_touch(char *c, const size_t e, const size_t n)
+template <typename data_type>
+__global__ void gpu_touch(data_type *c, const size_t stride, const size_t n, const bool noop = false)
 {
-  // const size_t bx = blockIdx.x;
-  // const size_t tx = threadIdx.x;
-  const size_t gx = blockIdx.x * blockDim.x + threadIdx.x;
-
-  for (size_t i = gx; i < n; i += e)
+  if (noop)
   {
-    c[i] = i * 31ul + 7ul;
+    return;
+  }
+
+  // global ID
+  const size_t gx = blockIdx.x * blockDim.x + threadIdx.x;
+  // lane ID 0-31
+  const size_t lx = (blockDim.x * blockIdx.x + threadIdx.x) & 31;
+  // warp ID
+  size_t wx = gx / 32;
+  // number of warps in the grid
+  const size_t numWarps = (gridDim.x * blockDim.x + 32 - 1) / 32;
+  // number of strides in N bytes
+  const size_t numStrides = (n + stride - 1) / stride;
+  // number of data_types in each
+  const size_t elemsPerStride = stride / sizeof(data_type);
+
+  if (0 == lx)
+  {
+
+    for (; wx < numStrides; wx += numWarps)
+    {
+      const size_t id = wx * elemsPerStride;
+      if (id < numStrides)
+      {
+        c[id] = id * 31ul + 7ul;
+      }
+    }
   }
 }
 
@@ -49,20 +72,64 @@ int main(void)
   RT_CHECK(cudaMallocManaged(&cm, pageSize * 32));
   RT_CHECK(cudaDeviceSynchronize());
 
-  dim3 dimGrid(1);
-  dim3 dimBlock(1);
+  const int numIters = 80;
 
-  for (size_t i = 0; i < 20; ++i)
+  for (size_t n = 4; n <= pageSize * 32; n *= 2)
   {
-    nvtxRangePush("iter");
-    nvtxRangePush("cpu");
-    cpu_touch(cm, pageSize, 1);
+    buffer.str("");
+    buffer << n;
+    nvtxRangePush(buffer.str().c_str());
+
+    RT_CHECK(cudaMallocManaged(&cm, n));
     RT_CHECK(cudaDeviceSynchronize());
+
+    const size_t stride = 4096;
+
+    // create enough warps to cover all the strides
+    const size_t numThreads = 32 * ((n + stride - 1) / stride);
+    dim3 dimBlock(128);
+    dim3 dimGrid((numThreads + 128 - 1) / 128);
+    // std::cout << numThreads << " " << dimGrid.x << "\n";
+
+    // Loop with work
+    nvtxRangePush("work");
+    auto start = std::chrono::high_resolution_clock::now();
+    for (size_t i = 0; i < numIters; ++i)
+    {
+
+      nvtxRangePush("cpu");
+      cpu_touch(cm, stride, n);
+      RT_CHECK(cudaDeviceSynchronize());
+      nvtxRangePop();
+      nvtxRangePush("gpu");
+      gpu_touch<<<dimGrid, dimBlock>>>(cm, stride, n);
+      RT_CHECK(cudaDeviceSynchronize());
+      nvtxRangePop();
+    }
+    auto end = std::chrono::high_resolution_clock::now();
     nvtxRangePop();
-    nvtxRangePush("gpu");
-    gpu_touch<<<dimGrid, dimBlock>>>(cm, pageSize, 1);
-    RT_CHECK(cudaDeviceSynchronize());
+    std::chrono::duration<double> workSeconds = end - start;
+
+    // empty loop
+    nvtxRangePush("noop");
+    start = std::chrono::high_resolution_clock::now();
+    for (size_t i = 0; i < numIters; ++i)
+    {
+      nvtxRangePush("cpu");
+      RT_CHECK(cudaDeviceSynchronize());
+      nvtxRangePop();
+      nvtxRangePush("gpu");
+      gpu_touch<<<dimGrid, dimBlock>>>(cm, stride, n, true /*no-op*/);
+      RT_CHECK(cudaDeviceSynchronize());
+      nvtxRangePop();
+    }
+    end = std::chrono::high_resolution_clock::now();
     nvtxRangePop();
+    std::chrono::duration<double> emptySeconds = end - start;
+
+    std::cout << "n=" << n << ": " << (workSeconds.count() - emptySeconds.count()) / numIters << " s/iter (" << numIters << ")\n";
+
+    RT_CHECK(cudaFree(cm));
     nvtxRangePop();
   }
 
