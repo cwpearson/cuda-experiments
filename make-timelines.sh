@@ -3,7 +3,7 @@
 set -eu
 
 MACHINE=$1
-modules=(cpu-touch ctx)
+modules=(coherence cpu-touch ctx stream-thread stream-warp)
 
 make
 
