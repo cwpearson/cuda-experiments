@@ -1,6 +1,6 @@
 NVCC = nvcc
 
-MODULES := cpu-touch ctx 
+MODULES := cpu-touch ctx coherence stream-thread
 
 # Look in each module for include files
 NVCCFLAGS += $(patsubst %,-I%,$(MODULES)) -I. -lineinfo
