@@ -1,6 +1,7 @@
 NVCC = nvcc
 
-MODULES := cpu-touch \
+MODULES := atomics \
+	cpu-touch \
 	coherence \
 	ctx \
 	stream-thread \
