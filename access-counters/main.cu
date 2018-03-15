@@ -19,17 +19,42 @@ void cpu_touch(volatile data_type *ptr)
 }
 
 template <typename data_type>
-__global__ void gpu_touch(data_type *ptr, const bool noop = false)
+__global__ void gpu_touch(data_type *ptr, const size_t pageSize, const size_t startCount, const size_t endCount, const bool noop = false)
 {
   if (noop)
   {
     return;
   }
 
+  const size_t pageSizeElems = pageSize / sizeof(data_type);
+
   const size_t gx = blockIdx.x * blockDim.x + threadIdx.x;
-  if (gx == 0)
+  for (size_t i = gx; i < endCount - startCount; i += blockDim.x * gridDim.x)
   {
-    ptr[0] = 0;
+    const size_t pageOffset = pageSizeElems * i;
+    const size_t accessCount = startCount + i;
+    for (size_t access = 0; access < accessCount; ++access) {
+      ptr[pageOffset] += access;
+    }
+  }
+}
+
+template <typename data_type>
+__global__ void sm_touch(data_type *ptr, const size_t footprint, const size_t numTouch, const bool noop = false)
+{
+  if (noop)
+  {
+    return;
+  }
+
+  const size_t numElems = footprint / sizeof(data_type);
+
+  const size_t gx = blockIdx.x * blockDim.x + threadIdx.x;
+  for (size_t i = gx; i < numElems; i += blockDim.x * gridDim.x)
+  {
+    for (size_t c = 0; c < numTouch; ++c) {
+      ptr[i] += c * 31 + 7;
+    }
   }
 }
 
@@ -39,34 +64,51 @@ int main(void)
   const long pageSize = sysconf(_SC_PAGESIZE);
   std::stringstream buffer;
 
-  RT_CHECK(cudaFree(0));
-
-  size_t memTotal, memAvail;
-  RT_CHECK(cudaMemGetInfo(&memAvail, &memTotal));
-
   typedef int data_type;
   data_type *ptr;
-  const size_t srcCount = 10;
-  const size_t dstCount = 1;
-  const dim3 dimGrid(1);
-  const dim3 dimBlock(1);
+  const int srcDev = 0;
+  const int dstDev = 1;
+  RT_CHECK(cudaSetDevice(srcDev));
+  RT_CHECK(cudaFree(0));
+  RT_CHECK(cudaSetDevice(dstDev));
+  RT_CHECK(cudaFree(0));
 
+  RT_CHECK(cudaSetDevice(srcDev));
+  size_t memTotal, memAvail;
+  RT_CHECK(cudaMemGetInfo(&memAvail, &memTotal));
   RT_CHECK(cudaMallocManaged(&ptr, pageSize));
+  RT_CHECK(cudaMemAdvise(ptr, pageSize, cudaMemAdviseSetPreferredLocation, 0));
 
   nvtxRangePush("src");
-  for (size_t srcI = 0; srcI < srcCount; ++srcI)
-  {
-    cpu_touch(ptr);
-  }
+  RT_CHECK(cudaSetDevice(srcDev));
+    sm_touch<<<840, 256>>>(ptr, pageSize, 1);
+  RT_CHECK(cudaDeviceSynchronize());
   nvtxRangePop();
 
   nvtxRangePush("dst");
-  for (size_t dstI = 0; dstI < dstCount; ++dstI)
-  {
-    gpu_touch<<<dimGrid, dimBlock>>>(ptr);
-  }
+  RT_CHECK(cudaSetDevice(dstDev));
+    sm_touch<<<1, 256>>>(ptr, pageSize, 1);
+    // gpu_touch<<<dimGrid, dimBlock>>>(ptr, pageSize, 1, 2);
+    // gpu_touch<<<dimGrid, dimBlock>>>(&ptr[pageSize / sizeof(data_type) * 400], pageSize, 1, 2);
+    // gpu_touch<<<dimGrid, dimBlock>>>(&ptr[pageSize / sizeof(data_type) * 800], pageSize, 1, 2);
   RT_CHECK(cudaDeviceSynchronize());
   nvtxRangePop();
+
+  nvtxRangePush("src");
+  RT_CHECK(cudaSetDevice(srcDev));
+    sm_touch<<<840, 256>>>(ptr, pageSize, 1);
+  //RT_CHECK(cudaDeviceSynchronize());
+  nvtxRangePop();
+
+  nvtxRangePush("dst");
+  RT_CHECK(cudaSetDevice(dstDev));
+    sm_touch<<<1, 256>>>(ptr, pageSize, 1);
+    // gpu_touch<<<dimGrid, dimBlock>>>(ptr, pageSize, 1, 2);
+    // gpu_touch<<<dimGrid, dimBlock>>>(&ptr[pageSize / sizeof(data_type) * 400], pageSize, 1, 2);
+    // gpu_touch<<<dimGrid, dimBlock>>>(&ptr[pageSize / sizeof(data_type) * 800], pageSize, 1, 2);
+  RT_CHECK(cudaDeviceSynchronize());
+  nvtxRangePop();
+
 
   RT_CHECK(cudaFree(ptr));
 
