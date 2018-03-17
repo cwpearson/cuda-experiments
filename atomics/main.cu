@@ -11,20 +11,20 @@
 
 #include "common/common.hpp"
 
-template <typename data_type, size_t REPEATS = 512>
+template <typename data_type, size_t REPEATS = 32>
 __global__ void gpu_touch(data_type *hist, const size_t *idx,
-                          double *threadTimes, const bool noop = false) {
+                          volatile double *threadTimes,
+                          const bool noop = false) {
   // global ID
   const size_t gx = blockIdx.x * blockDim.x + threadIdx.x;
   // where to increment
   const size_t voteIdx = idx[gx];
 
   const long long int start = clock64();
-  if (!noop) {
+  __threadfence_block();
 #pragma unroll(REPEATS)
-    for (size_t iter = 0; iter < REPEATS; ++iter) {
-      atomicAdd(&hist[voteIdx], gx);
-    }
+  for (size_t iter = 0; iter < REPEATS; ++iter) {
+    atomicAdd(&hist[voteIdx], gx);
   }
   const long long int end = clock64();
 
@@ -43,8 +43,6 @@ int main(void) {
 
   typedef int data_type;
 
-  const int numIters = 1000000;
-
   // number of warps making atomic accesses to same location
   // const size_t interWarpConflict;
   // number of threads w/in a warp making atomic accesses
@@ -54,11 +52,9 @@ int main(void) {
   cudaEventCreate(&startEvent);
   cudaEventCreate(&stopEvent);
 
-  float elapsed;
-
   for (size_t stride = sizeof(data_type); stride <= 64 * sizeof(data_type);
        stride *= 2) {
-    for (size_t numWay = 1; numWay <= 32; ++numWay) {
+    for (size_t numWay = 32; numWay <= 32; ++numWay) {
 
       assert(stride % sizeof(data_type) == 0);
 
@@ -72,7 +68,6 @@ int main(void) {
       dim3 dimGrid(1);
       dim3 dimBlock(32);
       const size_t numThreads = dimGrid.x * dimBlock.x;
-      const size_t numAtomics = numThreads * numIters;
 
       // Allocation tracking of thread times
       double *threadTimes_h, *threadTimes_d;
