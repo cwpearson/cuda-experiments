@@ -1,10 +1,9 @@
-#include <cstdio>
-#include <iostream>
-#include <cstdlib>
+#include <algorithm>
 #include <cassert>
-#include <sstream>
+#include <cstdio>
 #include <cstdlib>
-#include <chrono>
+#include <iostream>
+#include <sstream>
 
 #include <nvToolsExt.h>
 
@@ -12,26 +11,27 @@
 
 #include "common/common.hpp"
 
-template <typename data_type>
-__global__ void gpu_touch(data_type *hist, const size_t *idx, const size_t numIters, const bool noop = false)
-{
+template <typename data_type, size_t REPEATS = 512>
+__global__ void gpu_touch(data_type *hist, const size_t *idx,
+                          double *threadTimes, const bool noop = false) {
   // global ID
   const size_t gx = blockIdx.x * blockDim.x + threadIdx.x;
   // where to increment
   const size_t voteIdx = idx[gx];
 
-  if (!noop)
-  {
-#pragma unroll 4
-    for (size_t iter = 0; iter < numIters; ++iter)
-    {
+  const long long int start = clock64();
+  if (!noop) {
+#pragma unroll(REPEATS)
+    for (size_t iter = 0; iter < REPEATS; ++iter) {
       atomicAdd(&hist[voteIdx], gx);
     }
   }
+  const long long int end = clock64();
+
+  threadTimes[gx] = double(end - start) / REPEATS;
 }
 
-int main(void)
-{
+int main(void) {
 
   const long pageSize = sysconf(_SC_PAGESIZE);
   std::stringstream buffer;
@@ -56,10 +56,9 @@ int main(void)
 
   float elapsed;
 
-  for (size_t numWay = 1; numWay <= 32; ++numWay)
-  {
-    for (size_t stride = 128 * sizeof(data_type); stride <= 128 * sizeof(data_type); stride *= 2)
-    {
+  for (size_t stride = sizeof(data_type); stride <= 64 * sizeof(data_type);
+       stride *= 2) {
+    for (size_t numWay = 1; numWay <= 32; ++numWay) {
 
       assert(stride % sizeof(data_type) == 0);
 
@@ -75,6 +74,11 @@ int main(void)
       const size_t numThreads = dimGrid.x * dimBlock.x;
       const size_t numAtomics = numThreads * numIters;
 
+      // Allocation tracking of thread times
+      double *threadTimes_h, *threadTimes_d;
+      threadTimes_h = new double[numThreads];
+      RT_CHECK(cudaMalloc(&threadTimes_d, numThreads * sizeof(double)));
+
       // Allocate the histogram
       data_type *hist;
       RT_CHECK(cudaMalloc(&hist, stride * numThreads * sizeof(data_type)));
@@ -85,56 +89,48 @@ int main(void)
       RT_CHECK(cudaMalloc(&idx_d, numThreads * sizeof(size_t)));
 
       // initialize thread access indices
-      for (size_t i = 0; i < numThreads; ++i)
-      {
+      for (size_t i = 0; i < numThreads; ++i) {
         size_t lx = i % 32;
         size_t idx;
-        if (lx < numWay)
-        {
+        if (lx < numWay) {
           idx = 0;
-        }
-        else
-        {
+        } else {
           idx = i;
         }
         idx_h[i] = idx * (stride / sizeof(data_type));
       }
 
       // Copy thread access indices to device
-      RT_CHECK(cudaMemcpy(idx_d, idx_h, numThreads * sizeof(float), cudaMemcpyDefault));
+      RT_CHECK(cudaMemcpy(idx_d, idx_h, numThreads * sizeof(float),
+                          cudaMemcpyDefault));
       RT_CHECK(cudaDeviceSynchronize());
       nvtxRangePop();
 
       // work loop
       nvtxRangePush("work");
-      RT_CHECK(cudaEventRecord(startEvent, 0));
-      gpu_touch<<<dimGrid, dimBlock>>>(hist, idx_d, numIters);
-      RT_CHECK(cudaEventRecord(stopEvent, 0));
-      cudaEventSynchronize(stopEvent);
+      gpu_touch<<<dimGrid, dimBlock>>>(hist, idx_d, threadTimes_d);
+      RT_CHECK(cudaGetLastError());
       nvtxRangePop();
-      cudaEventElapsedTime(&elapsed, startEvent, stopEvent);
-      const double workSeconds = elapsed / 1e3;
 
-      // empty loop
-      nvtxRangePush("noop");
-      RT_CHECK(cudaEventRecord(startEvent, 0));
-      gpu_touch<<<dimGrid, dimBlock>>>(hist, idx_d, numIters, true /*no-op*/);
-      RT_CHECK(cudaEventRecord(stopEvent, 0));
-      cudaEventSynchronize(stopEvent);
-      nvtxRangePop();
-      cudaEventElapsedTime(&elapsed, startEvent, stopEvent);
-      const double noopSeconds = elapsed / 1e3;
+      // Get thread times back
+      RT_CHECK(cudaMemcpy(threadTimes_h, threadTimes_d,
+                          sizeof(double) * numThreads, cudaMemcpyDefault));
 
-      std::cout << "w=" << numWay << ": "
-                << "s=" << stride << ": "
-                << numAtomics / (workSeconds - noopSeconds) << " atomics/s (" << numAtomics << ") "
-                << (workSeconds - noopSeconds) / numIters << "s latency\n";
+      // Average, min, max thread times
+      double maxCycles =
+          *std::max_element(threadTimes_h, &threadTimes_h[numThreads]);
 
-      //free memory
+      // std::cout << "s=" << stride << ": "
+      //           << "w=" << numWay << ": " << maxCycles << "\n";
+      std::cout << stride << ", " << numWay << ", " << maxCycles << "\n";
+
+      // free memory
       nvtxRangePush("cleanup");
       RT_CHECK(cudaFree(hist));
       RT_CHECK(cudaFree(idx_d));
+      RT_CHECK(cudaFree(threadTimes_d));
       delete[] idx_h;
+      delete[] threadTimes_h;
       nvtxRangePop();
 
       nvtxRangePop();
