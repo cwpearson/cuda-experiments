@@ -2,6 +2,7 @@ NVCC = nvcc
 
 MODULES := access-counters \
 	atomics \
+	atomics.1 \
 	cpu-touch \
 	coherence \
 	ctx \
