@@ -6,6 +6,7 @@
 #include <sstream>
 
 #include <nvToolsExt.h>
+#include <cooperative_groups.h>
 
 #include <unistd.h>
 
@@ -13,6 +14,26 @@
 
 __global__ void gpu_touch(const int dev)
 {
+  // should come in as args
+  const int numIters = 10;
+  int *hist;
+
+  using namespace cooperative_groups;
+
+  auto mg = this_multi_grid();
+  // auto mg = this_thread_block();
+
+  for (int iter = 0; iter < numIters; ++iter)
+  {
+    mg.sync();
+
+    if (iter % dev == 0)
+    {
+      long long start = clock64();
+      atomicAdd_system(&hist[0], 1);
+      long long end = clock64();
+    }
+  }
 }
 
 std::vector<void *> box(int dev, int *hist)
