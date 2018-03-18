@@ -7,7 +7,8 @@ MODULES := access-counters \
 	coherence \
 	ctx \
 	stream-thread \
-	stream-warp
+	stream-warp \
+	system-atomics
 
 # Look in each module for include files
 NVCCFLAGS += $(patsubst %,-I%,$(MODULES)) -I. -lineinfo
