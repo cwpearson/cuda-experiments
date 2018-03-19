@@ -21,10 +21,7 @@ __global__ void gpu_touch(long long *clocks, int *hist, const int dev)
   const size_t gx = blockIdx.x * blockDim.x + threadIdx.x;
   auto mg = this_multi_grid();
 
-  clocks[gx] = 0;
-
-  long long start = 0;
-  long long end = 0;
+  const int ppCount = 0;
 #pragma unroll(NUM_ITERS)
   for (int iter = 0; iter < NUM_ITERS; ++iter)
   {
@@ -32,13 +29,19 @@ __global__ void gpu_touch(long long *clocks, int *hist, const int dev)
 
     if (iter % dev == 0)
     {
-      start = clock64();
+      long long start = clock64();
       atomicAdd_system(&hist[0], 1);
-      end = clock64();
+      long long end = clock64();
+      clocks[gx * NUM_ITERS + ppCount] = end - start;
+      ++ppCount;
     }
   }
 
-  clocks[gx] = end - start;
+  while (ppCount < NUM_ITERS)
+  {
+    clocks[gx * NUM_ITERS + ppCount] = -1;
+    ++ppCount;
+  }
 }
 
 std::vector<void *> box(long long *clocks, int *hist, const int dev)
@@ -68,6 +71,9 @@ std::vector<void *> box(long long *clocks, int *hist, const int dev)
 
 int main(void)
 {
+
+  // number of ping-pongs
+  const int numIters = 10;
 
   // create streams
   std::vector<cudaStream_t> streams(2);
