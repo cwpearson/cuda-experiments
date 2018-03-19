@@ -12,43 +12,54 @@
 
 #include "common/common.hpp"
 
-__global__ void gpu_touch(const int dev)
+template <size_t NUM_ITERS>
+__global__ void gpu_touch(long long *clocks, int *hist, const int dev)
 {
-  // should come in as args
-  const int numIters = 10;
-  int *hist;
 
   using namespace cooperative_groups;
 
+  const size_t gx = blockIdx.x * blockDim.x + threadIdx.x;
   auto mg = this_multi_grid();
-  // auto mg = this_thread_block();
 
-  for (int iter = 0; iter < numIters; ++iter)
+  clocks[gx] = 0;
+
+  long long start = 0;
+  long long end = 0;
+#pragma unroll(NUM_ITERS)
+  for (int iter = 0; iter < NUM_ITERS; ++iter)
   {
     mg.sync();
 
     if (iter % dev == 0)
     {
-      long long start = clock64();
+      start = clock64();
       atomicAdd_system(&hist[0], 1);
-      long long end = clock64();
+      end = clock64();
     }
   }
+
+  clocks[gx] = end - start;
 }
 
-std::vector<void *> box(int dev, int *hist)
+std::vector<void *> box(long long *clocks, int *hist, const int dev)
 {
   std::vector<void *> ret;
 
   {
-    auto box = new int;
-    *box = dev;
+    auto box = new long long *;
+    *box = clocks;
     ret.push_back(static_cast<void *>(box));
   }
 
   {
     auto box = new int *;
     *box = hist;
+    ret.push_back(static_cast<void *>(box));
+  }
+
+  {
+    auto box = new int;
+    *box = dev;
     ret.push_back(static_cast<void *>(box));
   }
 
@@ -66,14 +77,25 @@ int main(void)
     RT_CHECK(cudaStreamCreate(&streams[i]));
   }
 
+  // allocate histogram
   int *hist;
   RT_CHECK(cudaMallocManaged(&hist, 4096));
 
+  // allocate clock arrays
+  std::vector<long long *> devClocks(2);
+  std::vector<long long *> hostClocks(2);
+  for (size_t dev = 0; dev < devClocks.size(); ++dev)
+  {
+    RT_CHECK(cudaSetDevice(dev));
+    RT_CHECK(cudaMalloc((void **)&devClocks[dev][0], 32 * sizeof(long long)));
+    hostClocks[dev] = new long long[32];
+  }
+
   // create argument lists
   std::vector<std::vector<void *>> kernelArgsList(2);
-  for (size_t i = 0; i < kernelArgsList.size(); ++i)
+  for (size_t dev = 0; dev < kernelArgsList.size(); ++dev)
   {
-    kernelArgsList[i] = box(i, hist);
+    kernelArgsList[dev] = box(devClocks[dev], hist, dev);
   }
 
   // create launch parameters lists
@@ -83,7 +105,7 @@ int main(void)
   {
     auto &params = paramsList[i];
 
-    params.func = (void *)gpu_touch;
+    params.func = (void *)gpu_touch<1>;
     params.gridDim = dim3(1);
     params.blockDim = dim3(32);
     params.args = &(kernelArgsList[i][0]);
