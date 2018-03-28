@@ -21,7 +21,7 @@ __global__ void gpu_sync(long long *clocks, const int dev)
   const size_t gx = blockDim.x * blockIdx.x + threadIdx.x;
   // const size_t mgx = (dev * gridDim.x * blockDim.x) + gx;
 
-  auto mg = this_multi_grid();
+  multi_grid_group mg = this_multi_grid();
 
   long long start = clock64();
 #pragma unroll(NUM_ITERS)
@@ -57,6 +57,8 @@ std::vector<void *> box(long long *clocks, const int dev)
 int main(void)
 {
 
+  std::vector<int> devices = {0 ,1};
+
   // create streams
   std::vector<cudaStream_t> streams(2);
   for (size_t i = 0; i < streams.size(); ++i)
@@ -76,7 +78,7 @@ int main(void)
   for (size_t dev = 0; dev < devClocks.size(); ++dev)
   {
     RT_CHECK(cudaSetDevice(dev));
-    RT_CHECK(cudaMalloc((void **)&devClocks[dev][0], numThreads * sizeof(long long)));
+    RT_CHECK(cudaMalloc(&devClocks[dev], numThreads * sizeof(long long)));
     hostClocks[dev] = new long long[numThreads];
   }
 
@@ -94,7 +96,7 @@ int main(void)
   {
     auto &params = paramsList[i];
 
-    params.func = (void *)gpu_sync<256>;
+    params.func = (void *)gpu_sync<1>;
     params.gridDim = gridDim;
     params.blockDim = blockDim;
     params.args = &(kernelArgsList[i][0]);
@@ -103,6 +105,23 @@ int main(void)
   }
 
   RT_CHECK(cudaLaunchCooperativeKernelMultiDevice(&paramsList[0], 2));
+
+  // copy clocks back to host
+  for (size_t dev = 0; dev < devClocks.size(); ++dev)
+  {
+    RT_CHECK(cudaMemcpy(hostClocks[dev], devClocks[dev], numThreads * sizeof(long long), cudaMemcpyDefault));
+  }
+
+  // Print some host clocks:
+  for (size_t dev = 0; dev < devClocks.size(); ++dev)
+  {
+    std::cout << "dev: " << dev << std::endl;
+    for (size_t i = 0; i < numThreads; ++i) {
+      std::cerr << hostClocks[dev][i] << " ";
+    }
+    std::cout << std::endl;
+  }
+
 
   nvtxRangePush("cleanup");
   for (auto &stream : streams)
