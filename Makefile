@@ -6,6 +6,7 @@ MODULES := access-counters \
 	cpu-touch \
 	coherence \
 	ctx \
+	mgpu-sync \
 	stream-thread \
 	stream-warp \
 	system-atomics

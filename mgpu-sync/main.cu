@@ -13,38 +13,28 @@
 #include "common/common.hpp"
 
 template <size_t NUM_ITERS>
-__global__ void gpu_touch(long long *clocks, int *hist, const int dev, const int numIters)
+__global__ void gpu_sync(long long *clocks, const int dev)
 {
 
   using namespace cooperative_groups;
 
-  const size_t gx = blockIdx.x * blockDim.x + threadIdx.x;
+  const size_t gx = blockDim.x * blockIdx.x + threadIdx.x;
+  // const size_t mgx = (dev * gridDim.x * blockDim.x) + gx;
+
   auto mg = this_multi_grid();
 
-  int ppCount = 0;
+  long long start = clock64();
 #pragma unroll(NUM_ITERS)
   for (int iter = 0; iter < NUM_ITERS; ++iter)
   {
     mg.sync();
-
-    if (iter % dev == 0)
-    {
-      long long start = clock64();
-      atomicAdd_system(&hist[0], 1);
-      long long end = clock64();
-      clocks[gx * NUM_ITERS + ppCount] = end - start;
-      ++ppCount;
-    }
   }
+  long long end = clock64();
 
-  while (ppCount < NUM_ITERS)
-  {
-    clocks[gx * NUM_ITERS + ppCount] = -1;
-    ++ppCount;
-  }
+  clocks[gx] = (end - start) / NUM_ITERS;
 }
 
-std::vector<void *> box(long long *clocks, int *hist, const int dev, const int numIters)
+std::vector<void *> box(long long *clocks, const int dev)
 {
 
 #define BOX(v, T)                            \
@@ -57,9 +47,7 @@ std::vector<void *> box(long long *clocks, int *hist, const int dev, const int n
   std::vector<void *> ret;
 
   BOX(clocks, long long *);
-  BOX(hist, int *);
   BOX(dev, int);
-  BOX(numIters, int);
 
 #undef BOX
 
@@ -69,9 +57,6 @@ std::vector<void *> box(long long *clocks, int *hist, const int dev, const int n
 int main(void)
 {
 
-  // number of ping-pongs
-  const int numIters = 10;
-
   // create streams
   std::vector<cudaStream_t> streams(2);
   for (size_t i = 0; i < streams.size(); ++i)
@@ -80,9 +65,10 @@ int main(void)
     RT_CHECK(cudaStreamCreate(&streams[i]));
   }
 
-  // allocate histogram
-  int *hist;
-  RT_CHECK(cudaMallocManaged(&hist, 4096));
+  // determine kernel parameters
+  dim3 gridDim(1);
+  dim3 blockDim(32);
+  const size_t numThreads = gridDim.x * blockDim.x;
 
   // allocate clock arrays
   std::vector<long long *> devClocks(2);
@@ -90,15 +76,15 @@ int main(void)
   for (size_t dev = 0; dev < devClocks.size(); ++dev)
   {
     RT_CHECK(cudaSetDevice(dev));
-    RT_CHECK(cudaMalloc((void **)&devClocks[dev][0], 32 * sizeof(long long)));
-    hostClocks[dev] = new long long[32];
+    RT_CHECK(cudaMalloc((void **)&devClocks[dev][0], numThreads * sizeof(long long)));
+    hostClocks[dev] = new long long[numThreads];
   }
 
   // create argument lists
   std::vector<std::vector<void *>> kernelArgsList(2);
   for (size_t dev = 0; dev < kernelArgsList.size(); ++dev)
   {
-    kernelArgsList[dev] = box(devClocks[dev], hist, dev, numIters);
+    kernelArgsList[dev] = box(devClocks[dev], dev);
   }
 
   // create launch parameters lists
@@ -108,9 +94,9 @@ int main(void)
   {
     auto &params = paramsList[i];
 
-    params.func = (void *)gpu_touch<1>;
-    params.gridDim = dim3(1);
-    params.blockDim = dim3(32);
+    params.func = (void *)gpu_sync<256>;
+    params.gridDim = gridDim;
+    params.blockDim = blockDim;
     params.args = &(kernelArgsList[i][0]);
     params.sharedMem = 0;
     params.stream = streams[i];
@@ -123,8 +109,6 @@ int main(void)
   {
     RT_CHECK(cudaStreamDestroy(stream));
   }
-
-  RT_CHECK(cudaFree(hist));
 
   // for (auto &kernelArgs : kernelArgsList)
   // {
