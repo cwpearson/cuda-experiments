@@ -13,8 +13,7 @@
 
 #include "common/common.hpp"
 
-static void prefetch_bw(const int dstDev, const int srcDev,
-                        const size_t count) {
+static void pinned_bw(const int dstDev, const int srcDev, const size_t count) {
 
   assert((srcDev == cudaCpuDeviceId) ^ (dstDev == cudaCpuDeviceId));
 
@@ -86,10 +85,10 @@ int main(void) {
   for (size_t count = 2048; count <= 1 * 1024ul * 1024ul * 1024ul; count *= 2) {
     printf("%f", count / 1024.0 / 1024.0);
     for (const auto dev : devIds) {
-      prefetch_bw(dev, cudaCpuDeviceId, count);
+      pinned_bw(dev, cudaCpuDeviceId, count);
     }
     for (const auto dev : devIds) {
-      prefetch_bw(cudaCpuDeviceId, dev, count);
+      pinned_bw(cudaCpuDeviceId, dev, count);
     }
     printf("\n");
   }
