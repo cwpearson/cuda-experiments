@@ -110,7 +110,7 @@ static void prefetch_bw(const int dstDev, const size_t steps)
     end = std::chrono::high_resolution_clock::now();
     nvtxRangePop();
     RT_CHECK(cudaMemcpy(clocks_h, clocks_d, sizeof(long long), cudaMemcpyDefault));
-    explicitTimes.push_back((end - start).count());
+    explicitTimes.push_back((end - start).count() / 1e3);
 
     // std::cout << ":" << *clocks_h << " " << (end - start).count() << "\n";
   }
