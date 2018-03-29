@@ -67,7 +67,6 @@ static void prefetch_bw(const int dstDev, const int srcDev, const size_t count)
 
 int main(void)
 {
-  std::cout << std::fixed;
   const long pageSize = sysconf(_SC_PAGESIZE);
 
   int numDevs;

@@ -1,5 +1,4 @@
 #include <cstdio>
-#include <iostream>
 #include <cstdlib>
 #include <sstream>
 #include <chrono>
@@ -127,7 +126,7 @@ static void prefetch_bw(const int dstDev, const int srcDev, const size_t count, 
   const double minTime = *std::min_element(times.begin(), times.end());
   const double avgTime = std::accumulate(times.begin(), times.end(), 0.0) / times.size();
 
-  std::cout << "," << count / 1024.0 / 1024.0 / (minTime);
+  printf(",%.2f", count / 1024.0 / 1024.0 / minTime);
   RT_CHECK(cudaFree(ptr));
 }
 
@@ -147,22 +146,22 @@ int main(void)
   devIds.push_back(cudaCpuDeviceId);
 
   // print header
-  std::cout << "Transfer Size (MB),";
+  printf("Transfer Size (MB),");
   for (const auto src : devIds)
   {
     for (const auto dst : devIds)
     {
       if (src != dst)
       {
-        std::cout << src << ":" << dst << ",";
+        printf("%d:%d,", src, dst);
       }
     }
   }
-  std::cout << "\n";
+  printf("\n");
 
   for (size_t count = 2048; count <= 4 * 1024ul * 1024ul * 1024ul; count *= 2)
   {
-    std::cout << count / 1024.0 / 1024.0;
+    printf("%f", count / 1024.0 / 1024.0);
     for (const auto src : devIds)
     {
       for (const auto dst : devIds)
@@ -173,7 +172,7 @@ int main(void)
         }
       }
     }
-    std::cout << "\n";
+    printf("\n");
   }
 
   return 0;
