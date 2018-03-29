@@ -27,6 +27,7 @@ MODULES = access-counters \
 	cpu-touch \
 	coherence-bw \
 	ctx \
+	pinned \
 	prefetch-bw \
 	stream-thread \
 	stream-warp 
