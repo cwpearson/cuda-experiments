@@ -7,6 +7,8 @@
 #include <sstream>
 #include <vector>
 
+#include <numa.h>
+
 #include <nvToolsExt.h>
 
 #include <unistd.h>
@@ -62,14 +64,20 @@ static void pinned_bw(const int dstDev, const int srcDev, const size_t count) {
 
 int main(void) {
 
+  const size_t numNodes = numa_max_node();
+
   const long pageSize = sysconf(_SC_PAGESIZE);
 
   int numDevs;
   RT_CHECK(cudaGetDeviceCount(&numDevs));
 
   std::vector<int> devIds;
+  std::vector<int> numaIds;
   for (int dev = 0; dev < numDevs; ++dev) {
     devIds.push_back(dev);
+  }
+  for (int numa = 0; numa < numNodes; ++numa) {
+    numaIds.push_back(numa);
   }
 
   // print header
