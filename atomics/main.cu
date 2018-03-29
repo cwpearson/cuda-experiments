@@ -11,20 +11,24 @@
 
 #include "common/common.hpp"
 
-template <typename data_type, size_t REPEATS = 32>
-__global__ void gpu_touch(data_type *hist, const size_t *idx,
-                          volatile double *threadTimes,
-                          const bool noop = false) {
+template <typename data_type, size_t REPEATS = 1024>
+__global__ void
+gpu_touch(data_type *__restrict__ hist, const size_t *__restrict__ idx,
+          double *__restrict__ threadTimes, const bool noop = false) {
   // global ID
   const size_t gx = blockIdx.x * blockDim.x + threadIdx.x;
   // where to increment
   const size_t voteIdx = idx[gx];
 
+  hist[voteIdx] = 0;
+  __syncthreads();
+
   const long long int start = clock64();
-  __threadfence_block();
+  if (!noop) {
 #pragma unroll(REPEATS)
-  for (size_t iter = 0; iter < REPEATS; ++iter) {
-    atomicAdd(&hist[voteIdx], gx);
+    for (size_t iter = 0; iter < REPEATS; ++iter) {
+      atomicAdd(&hist[voteIdx], gx);
+    }
   }
   const long long int end = clock64();
 
@@ -48,13 +52,9 @@ int main(void) {
   // number of threads w/in a warp making atomic accesses
   // const size_t intraWarpConflict;
 
-  cudaEvent_t startEvent, stopEvent;
-  cudaEventCreate(&startEvent);
-  cudaEventCreate(&stopEvent);
-
-  for (size_t stride = sizeof(data_type); stride <= 64 * sizeof(data_type);
+  for (size_t stride = sizeof(data_type); stride <= 1024 * sizeof(data_type);
        stride *= 2) {
-    for (size_t numWay = 32; numWay <= 32; ++numWay) {
+    for (size_t numWay = 4; numWay <= 4; ++numWay) {
 
       assert(stride % sizeof(data_type) == 0);
 
@@ -112,7 +112,7 @@ int main(void) {
                           sizeof(double) * numThreads, cudaMemcpyDefault));
 
       // Average, min, max thread times
-      double maxCycles =
+      const double maxCycles =
           *std::max_element(threadTimes_h, &threadTimes_h[numThreads]);
 
       // std::cout << "s=" << stride << ": "
