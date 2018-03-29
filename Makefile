@@ -30,7 +30,7 @@ MODULES = access-counters \
 
 # Look in each module for include files
 #NVCCFLAGS += $(patsubst %,-I%,$(MODULES)) -I. -lineinfo
-NVCCFLAGS += -I. -lineinfo -gencode $(GENCODE)
+NVCCFLAGS += -I. -lineinfo $(GENCODE)
 
 #each module will add to this
 TARGETS :=
