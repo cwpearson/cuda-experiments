@@ -19,7 +19,6 @@ __global__ void gpu_sync(long long *clocks, const int dev)
   using namespace cooperative_groups;
 
   const size_t gx = blockDim.x * blockIdx.x + threadIdx.x;
-  // const size_t mgx = (dev * gridDim.x * blockDim.x) + gx;
 
   multi_grid_group mg = this_multi_grid();
 
@@ -57,7 +56,7 @@ std::vector<void *> box(long long *clocks, const int dev)
 int main(void)
 {
 
-  std::vector<int> devices = {0 ,1};
+  std::vector<int> devices = {0, 1};
 
   // create streams
   std::vector<cudaStream_t> streams(2);
@@ -116,12 +115,12 @@ int main(void)
   for (size_t dev = 0; dev < devClocks.size(); ++dev)
   {
     std::cout << "dev: " << dev << std::endl;
-    for (size_t i = 0; i < numThreads; ++i) {
+    for (size_t i = 0; i < numThreads; ++i)
+    {
       std::cerr << hostClocks[dev][i] << " ";
     }
     std::cout << std::endl;
   }
-
 
   nvtxRangePush("cleanup");
   for (auto &stream : streams)

@@ -28,6 +28,7 @@ MODULES = access-counters \
 	atomics.1 \
 	cpu-touch \
 	coherence-bw \
+	coherence-latency \
 	ctx \
 	pinned \
 	prefetch-bw \
