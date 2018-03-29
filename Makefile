@@ -1,21 +1,30 @@
 NVCC = nvcc
 
-NVCC_VERSION := $(shell nvcc -V | grep -oP "release \K([0-9]{1,}\.)+[0-9]{1,}")
+#NVCC_VER_MAJOR := $(shell nvcc -V | grep -oP "release \K([0-9]{1,}\.)+[0-9]{1,}")
+NVCC_VER_MAJOR := $(shell nvcc -V | grep -oP "release \K([0-9])")
 DRIVER_VERSION := $(shell nvidia-smi | grep -oP "Driver Version: \K([0-9]{1,}\.)+[0-9]{1,}")
 
-$(info $(NVCC_VERSION) "/" $(DRIVER_VERSION) )
+$(info $(NVCC_VER_MAJOR) "/" $(DRIVER_VERSION) )
 
-MODULES := access-counters \
+ifeq ($(NVCC_VER_MAJOR),9)
+MODULES += mgpu-sync \
+           system-atomics
+GENCODE := arch=compute_70,code=compute_70
+else ifeq ($(NVCC_VER_MAJOR),8)
+GENCODE := arch=compute_60,code=compute_60
+else
+$(error Unrecognized nvcc version)
+endif
+
+MODULES = access-counters \
 	atomics \
 	atomics.1 \
 	cpu-touch \
 	coherence \
 	ctx \
-	mgpu-sync \
 	prefetch-bw \
 	stream-thread \
-	stream-warp \
-	system-atomics
+	stream-warp 
 
 # Look in each module for include files
 #NVCCFLAGS += $(patsubst %,-I%,$(MODULES)) -I. -lineinfo
