@@ -143,11 +143,11 @@ int main(void)
   }
 
   // print header
-  printf("# Strides,");
+  printf("# Strides");
 
   for (const auto dst : devIds)
   {
-    printf("GPU%d Traversal Time (us) [managed], GPU%d Traversal Time (us) [explicit]", dst, dst);
+    printf(",GPU%d Traversal Time (us) [managed], GPU%d Traversal Time (us) [explicit]", dst, dst);
   }
 
   printf("\n");
