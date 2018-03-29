@@ -56,7 +56,8 @@ static void prefetch_bw(const int dstDev, const int srcDev, const size_t count, 
     totalWork += txSeconds.count();
   }
 
-  std::cout << srcDev << "->" << dstDev << "," << count << "," << totalWork / numIters << "," << count / 1024.0 / 1024.0 / (totalWork / numIters) << "MB/s" << std::endl;
+  std::cout << "," << count / 1024.0 / 1024.0 / (totalWork / numIters);
+  RT_CHECK(cudaFree(ptr));
 }
 
 int main(void)
@@ -68,25 +69,39 @@ int main(void)
   RT_CHECK(cudaGetDeviceCount(&numDevs));
 
   std::vector<int> devIds;
-  for (int dev = 0; dev < numDevs; ++dev)
+  for (int dev = 0; dev < 3; ++dev)
   {
     devIds.push_back(dev);
   }
   devIds.push_back(cudaCpuDeviceId);
 
+  // print header
+  std::cout << "Transfer Size (MB),";
   for (const auto src : devIds)
   {
     for (const auto dst : devIds)
     {
       if (src != dst)
       {
+	std::cout << src << ":" << dst <<",";
+      }
+    }
+  }
+  std::cout << "\n";
 
-        for (size_t count = 128; count <= 2ul * 1024ul * 1024ul * 1024ul; count *= 2)
+  for (size_t count = 2048; count <= 4 * 1024ul * 1024ul * 1024ul; count *= 2) {
+    std::cout << count / 1024.0 / 1024.0;
+    for (const auto src : devIds)
+    {
+      for (const auto dst : devIds)
+      {
+        if (src != dst)
         {
-          prefetch_bw(dst, src, count, pageSize);
+            prefetch_bw(dst, src, count, pageSize);
         }
       }
     }
+            std::cout << "\n";
   }
 
   return 0;
