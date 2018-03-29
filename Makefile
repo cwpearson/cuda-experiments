@@ -11,7 +11,7 @@ MODULES += mgpu-sync \
            system-atomics
 GENCODE := arch=compute_70,code=compute_70
 else ifeq ($(NVCC_VER_MAJOR),8)
-GENCODE := arch=compute_60,code=compute_60
+GENCODE := arch=compute_60,code=compute_60,compute_61,code=compute_61,compute_62,code=compute_62
 else
 $(error Unrecognized nvcc version)
 endif
