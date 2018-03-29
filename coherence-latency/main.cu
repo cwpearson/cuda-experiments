@@ -147,7 +147,7 @@ int main(void)
 
   for (const auto dst : devIds)
   {
-    printf("%d (managed) [us], %d (explicit) [us]", dst, dst);
+    printf("GPU%d Traversal Time (us) [managed], GPU%d Traversal Time (us) [explicit]", dst, dst);
   }
 
   printf("\n");
