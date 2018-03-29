@@ -4,6 +4,8 @@
 #include <sstream>
 #include <chrono>
 #include <vector>
+#include <algorithm>
+#include <numeric>
 
 #include <nvToolsExt.h>
 
@@ -89,7 +91,7 @@ static void prefetch_bw(const int dstDev, const int srcDev, const size_t count, 
 
   RT_CHECK(cudaMallocManaged(&ptr, count));
 
-  double totalTime = 0;
+  std::vector<double> times;
   const size_t numIters = 20;
   for (size_t i = 0; i < numIters; ++i)
   {
@@ -119,10 +121,13 @@ static void prefetch_bw(const int dstDev, const int srcDev, const size_t count, 
     auto end = std::chrono::high_resolution_clock::now();
     std::chrono::duration<double> txSeconds = end - start;
     nvtxRangePop();
-    totalTime += txSeconds.count();
+    times.push_back(txSeconds.count());
   }
 
-  std::cout << "," << count / 1024.0 / 1024.0 / (totalTime / numIters);
+  const double minTime = *std::min_element(times.begin(), times.end());
+  const double avgTime = std::accumulate(times.begin(), times.end(), 0.0) / times.size();
+
+  std::cout << "," << count / 1024.0 / 1024.0 / (minTime);
   RT_CHECK(cudaFree(ptr));
 }
 

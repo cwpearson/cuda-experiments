@@ -4,6 +4,8 @@
 #include <sstream>
 #include <chrono>
 #include <vector>
+#include <algorithm>
+#include <numeric>
 
 #include <nvToolsExt.h>
 
@@ -11,7 +13,7 @@
 
 #include "common/common.hpp"
 
-static void prefetch_bw(const int dstDev, const int srcDev, const size_t count, const size_t stride)
+static void prefetch_bw(const int dstDev, const int srcDev, const size_t count)
 {
 
   if (srcDev != cudaCpuDeviceId)
@@ -35,7 +37,7 @@ static void prefetch_bw(const int dstDev, const int srcDev, const size_t count, 
 
   RT_CHECK(cudaMallocManaged(&ptr, count));
 
-  double totalWork = 0;
+  std::vector<double> times;
   const size_t numIters = 20;
   for (size_t i = 0; i < numIters; ++i)
   {
@@ -53,10 +55,13 @@ static void prefetch_bw(const int dstDev, const int srcDev, const size_t count, 
     auto end = std::chrono::high_resolution_clock::now();
     nvtxRangePop();
     std::chrono::duration<double> txSeconds = end - start;
-    totalWork += txSeconds.count();
+    times.push_back(txSeconds.count());
   }
 
-  std::cout << "," << count / 1024.0 / 1024.0 / (totalWork / numIters);
+  const double minTime = *std::min_element(times.begin(), times.end());
+  const double avgTime = std::accumulate(times.begin(), times.end(), 0.0) / times.size();
+
+  std::cout << "," << count / 1024.0 / 1024.0 / (minTime);
   RT_CHECK(cudaFree(ptr));
 }
 
@@ -69,7 +74,7 @@ int main(void)
   RT_CHECK(cudaGetDeviceCount(&numDevs));
 
   std::vector<int> devIds;
-  for (int dev = 0; dev < 3; ++dev)
+  for (int dev = 0; dev < numDevs; ++dev)
   {
     devIds.push_back(dev);
   }
@@ -83,13 +88,14 @@ int main(void)
     {
       if (src != dst)
       {
-	std::cout << src << ":" << dst <<",";
+        std::cout << src << ":" << dst << ",";
       }
     }
   }
   std::cout << "\n";
 
-  for (size_t count = 2048; count <= 4 * 1024ul * 1024ul * 1024ul; count *= 2) {
+  for (size_t count = 2048; count <= 4 * 1024ul * 1024ul * 1024ul; count *= 2)
+  {
     std::cout << count / 1024.0 / 1024.0;
     for (const auto src : devIds)
     {
@@ -97,11 +103,11 @@ int main(void)
       {
         if (src != dst)
         {
-            prefetch_bw(dst, src, count, pageSize);
+          prefetch_bw(dst, src, count);
         }
       }
     }
-            std::cout << "\n";
+    std::cout << "\n";
   }
 
   return 0;
