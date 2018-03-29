@@ -12,6 +12,7 @@ MODULES := access-counters \
 	coherence \
 	ctx \
 	mgpu-sync \
+	prefetch-bw \
 	stream-thread \
 	stream-warp \
 	system-atomics
