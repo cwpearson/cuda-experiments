@@ -9,7 +9,10 @@ $(info $(NVCC_VER_MAJOR) "/" $(DRIVER_VERSION) )
 ifeq ($(NVCC_VER_MAJOR),9)
 MODULES += mgpu-sync \
            system-atomics
-GENCODE := arch=compute_70,code=compute_70
+GENCODE := -gencode arch=compute_60,code=compute_60 \
+           -gencode arch=compute_61,code=compute_61 \
+		   -gencode arch=compute_62,code=compute_62 \
+		   -gencode arch=compute_70,code=compute_70
 else ifeq ($(NVCC_VER_MAJOR),8)
 GENCODE := -gencode arch=compute_60,code=compute_60 \
            -gencode arch=compute_61,code=compute_61 \
@@ -23,6 +26,7 @@ MODULES = access-counters \
 	atomics.1 \
 	cpu-touch \
 	coherence \
+	coherence-bw \
 	ctx \
 	prefetch-bw \
 	stream-thread \
