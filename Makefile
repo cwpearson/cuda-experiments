@@ -36,7 +36,8 @@ MODULES = access-counters \
 	pinned \
 	prefetch-bw \
 	stream-thread \
-	stream-warp 
+	stream-warp \
+	wc
 
 # Look in each module for include files
 #NVCCFLAGS += $(patsubst %,-I%,$(MODULES)) -I. -lineinfo
