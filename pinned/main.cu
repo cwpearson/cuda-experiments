@@ -23,13 +23,13 @@ static void pinned_bw(const Device &dst, const Device &src, const size_t count)
   void *devPtr, *hostPtr;
   void *srcPtr, *dstPtr;
 
-  if (src.is_cpu())
+  if (src.is_gpu())
   {
-    RT_CHECK(cudaSetDevice(dst.id()));
+    RT_CHECK(cudaSetDevice(src.id()));
   }
   else
   {
-    RT_CHECK(cudaSetDevice(src.id()));
+    RT_CHECK(cudaSetDevice(dst.id()));
   }
 
   RT_CHECK(cudaFree(0));
@@ -38,13 +38,13 @@ static void pinned_bw(const Device &dst, const Device &src, const size_t count)
 
   if (src.is_gpu())
   {
-    srcPtr = hostPtr;
-    dstPtr = devPtr;
+    srcPtr = devPtr;
+    dstPtr = hostPtr;
   }
   else
   {
-    srcPtr = devPtr;
-    dstPtr = hostPtr;
+    srcPtr = hostPtr;
+    dstPtr = devPtr;
   }
 
   std::vector<double> times;
