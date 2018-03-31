@@ -24,10 +24,22 @@ static void gpu_gpu_bw(const Device &dst, const Device &src, const size_t count)
 
   RT_CHECK(cudaSetDevice(src.id()));
   RT_CHECK(cudaMalloc(&srcPtr, count));
-  RT_CHECK(cudaDeviceDisablePeerAccess(dst.id()));
+  {
+    cudaError_t err = cudaDeviceEnablePeerAccess(dst.id(), 0);
+    if (err != cudaErrorPeerAccessAlreadyEnabled)
+    {
+      RT_CHECK(err);
+    }
+  }
   RT_CHECK(cudaSetDevice(dst.id()));
   RT_CHECK(cudaMalloc(&dstPtr, count));
-  RT_CHECK(cudaDeviceDisablePeerAccess(src.id()));
+  {
+    cudaError_t err = cudaDeviceEnablePeerAccess(src.id(), 0);
+    if (err != cudaErrorPeerAccessAlreadyEnabled)
+    {
+      RT_CHECK(err);
+    }
+  }
 
   std::vector<double> times;
   const size_t numIters = 20;
@@ -68,8 +80,12 @@ int main(void)
     {
       if (src != dst)
       {
-
-        printf(",%s:%s", src.name().c_str(), dst.name().c_str());
+        int can;
+        RT_CHECK(cudaDeviceCanAccessPeer(&can, src.id(), dst.id()));
+        if (can)
+        {
+          printf(",%s:%s", src.name().c_str(), dst.name().c_str());
+        }
       }
     }
   }
@@ -89,8 +105,13 @@ int main(void)
 
         if (src != dst)
         {
+          int can;
+          RT_CHECK(cudaDeviceCanAccessPeer(&can, src.id(), dst.id()));
+          if (can)
+          {
 
-          gpu_gpu_bw(dst, src, count);
+            gpu_gpu_bw(dst, src, count);
+          }
         }
       }
     }
