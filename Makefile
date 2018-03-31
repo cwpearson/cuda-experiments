@@ -30,6 +30,7 @@ MODULES = access-counters \
 	coherence-bw \
 	coherence-latency \
 	ctx \
+	pageable \
 	pinned \
 	prefetch-bw \
 	stream-thread \
