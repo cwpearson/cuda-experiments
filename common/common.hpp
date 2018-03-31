@@ -90,7 +90,6 @@ inline std::vector<Device> get_cpus()
   if (-1 != numa_available())
   {
     const int numNodes = numa_max_node() + 1;
-    std::cerr << numNodes << "\n";
     std::vector<Device> cpus(numNodes);
     for (int i = 0; i < numNodes; ++i)
     {
