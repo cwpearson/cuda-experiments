@@ -7,3 +7,8 @@
 
 **/main
 results
+
+thirdparty/include
+thirdparty/lib
+thirdparty/share
+thirdparty/bin
