@@ -71,6 +71,16 @@ public:
   int cuda_device_id() { return is_cpu() ? cudaCpuDeviceId : id_; }
   int id() const { return id_; }
 
+  bool operator==(const Device &other) const
+  {
+    return (cpu_ == other.cpu_) && (id_ == other.id_);
+  }
+
+  bool operator!=(const Device &other) const
+  {
+    return !((*this) == other);
+  }
+
 private:
   bool cpu_;
   int id_;
