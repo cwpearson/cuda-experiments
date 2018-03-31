@@ -19,18 +19,18 @@ template <typename data_type>
 __global__ void gpu_write(data_type *ptr, const size_t stride, const size_t count)
 {
   const size_t gx = blockIdx.x * blockDim.x + threadIdx.x;
-  const size_t wx = gx >> 5; // warp id
-  const size_t lx = gx & 31; // lane id
+  const size_t wx = gx >> 5;            // warp id
+  const size_t lx = threadIdx.x & 0x1F; // lane id
   const size_t warpsInGrid = gridDim.x * blockDim.x / 32;
 
   const size_t dataInStride = stride / sizeof(data_type);
   const size_t dataInCount = count / sizeof(data_type);
 
-  if (lx == 0) // one thread per warp
+  for (size_t i = wx * dataInStride; i < dataInCount; i += warpsInGrid * dataInStride)
   {
-    for (size_t i = wx * dataInStride; i < dataInCount; i += warpsInGrid * dataInStride)
+    for (size_t strideOff = lx; strideOff < dataInStride; strideOff += 32)
     {
-      ptr[i] = i;
+      ptr[i + strideOff] = i;
     }
   }
 }
