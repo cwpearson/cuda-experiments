@@ -30,7 +30,7 @@ __global__ void gpu_read(data_type *ptr, const size_t stride, const size_t count
 
   for (size_t i = wx * dataInStride; i < dataInCount; i += warpsInGrid * dataInStride)
   {
-    for (size_t strideOff = lx; strideOff < dataInStride; strideOff += 32)
+    for (size_t strideOff = lx; strideOff < dataInStride && (i + strideOff < dataInCount); strideOff += 32)
     {
       acc += ptr[i + strideOff];
     }

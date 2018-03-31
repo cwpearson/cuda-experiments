@@ -28,7 +28,7 @@ __global__ void gpu_write(data_type *ptr, const size_t stride, const size_t coun
 
   for (size_t i = wx * dataInStride; i < dataInCount; i += warpsInGrid * dataInStride)
   {
-    for (size_t strideOff = lx; strideOff < dataInStride; strideOff += 32)
+    for (size_t strideOff = lx; strideOff < dataInStride && (i + strideOff < dataInCount); strideOff += 32)
     {
       ptr[i + strideOff] = i;
     }
