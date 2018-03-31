@@ -33,23 +33,20 @@ __global__ void gpu_traverse(size_t *ptr, const size_t steps, long long *clocks)
   clocks[0] = end - start;
 }
 
-template <typename data_type, bool NOOP = false>
-__global__ void gpu_write(data_type *ptr, long long *clocks)
+template <bool NOOP = false>
+void cpu_traverse(size_t *ptr, const size_t steps)
 {
+
   if (NOOP)
   {
     return;
   }
-
-  const size_t gx = blockIdx.x * blockDim.x + threadIdx.x;
-
-  if (gx == 0)
+  size_t next = 0;
+  for (int i = 0; i < steps; ++i)
   {
-    long long start = clock64();
-    atomicAdd(&ptr[gx], 31);
-    long long end = clock64();
-    clocks[gx] = end - start;
+    next = ptr[next];
   }
+  ptr[next] = 1;
 }
 
 static void prefetch_bw(const int dstDev, const size_t steps)
