@@ -81,11 +81,20 @@ int main(void)
 
   // print header
   printf("Transfer Size (MB)");
+  // cpu->gpu
   for (const auto cpu : cpus)
   {
     for (const auto gpu : gpus)
     {
       printf(",%s:%s", cpu.name().c_str(), gpu.name().c_str());
+    }
+  }
+  //gpu->cpu
+  for (const auto cpu : cpus)
+  {
+    for (const auto gpu : gpus)
+    {
+      printf(",%s:%s", gpu.name().c_str(), cpu.name().c_str());
     }
   }
 
@@ -94,6 +103,15 @@ int main(void)
   for (size_t count = 2048; count <= 1 * 1024ul * 1024ul * 1024ul; count *= 2)
   {
     printf("%f", count / 1024.0 / 1024.0);
+    //cpu->gpu
+    for (const auto cpu : cpus)
+    {
+      for (const auto gpu : gpus)
+      {
+        pinned_bw(gpu, cpu, count);
+      }
+    }
+    //gpu->cpu
     for (const auto cpu : cpus)
     {
       for (const auto gpu : gpus)
