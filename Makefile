@@ -32,7 +32,8 @@ MODULES = access-counters \
 	coherence-latency \
 	cpu-touch \
 	ctx \
-	direct-peer \
+	direct-peer-srcwr \
+	direct-peer-dstrd \
 	memcpy-nopeer \
 	memcpy-peer \
 	pageable \

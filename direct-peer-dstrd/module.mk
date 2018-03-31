@@ -1,4 +1,4 @@
-MODULE := direct-peer
+MODULE := direct-peer-dstrd
 
 TARGETS += $(MODULE)/main
 
