@@ -28,10 +28,12 @@ endif
 MODULES = access-counters \
 	atomics \
 	atomics.1 \
-	cpu-touch \
 	coherence-bw \
 	coherence-latency \
+	cpu-touch \
 	ctx \
+	memcpy-nopeer \
+	memcpy-peer \
 	pageable \
 	pinned \
 	prefetch-bw \
