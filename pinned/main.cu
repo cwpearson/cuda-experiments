@@ -15,35 +15,42 @@
 
 #include "common/common.hpp"
 
-static void pinned_bw(const int dstDev, const int srcDev, const size_t count) {
+static void pinned_bw(const Device &dst, const Device &src, const size_t count)
+{
 
-  assert((srcDev == cudaCpuDeviceId) ^ (dstDev == cudaCpuDeviceId));
+  assert((src.is_cpu()) ^ (dst.is_cpu()));
 
   void *devPtr, *hostPtr;
   void *srcPtr, *dstPtr;
 
-  if (srcDev == cudaCpuDeviceId) {
-    RT_CHECK(cudaSetDevice(dstDev));
-
-  } else {
-    RT_CHECK(cudaSetDevice(srcDev));
+  if (src.is_cpu())
+  {
+    RT_CHECK(cudaSetDevice(dst.id()));
+  }
+  else
+  {
+    RT_CHECK(cudaSetDevice(src.id()));
   }
 
   RT_CHECK(cudaFree(0));
   RT_CHECK(cudaMalloc(&devPtr, count))
   RT_CHECK(cudaMallocHost(&hostPtr, count));
 
-  if (srcDev == cudaCpuDeviceId) {
+  if (src.is_gpu())
+  {
     srcPtr = hostPtr;
     dstPtr = devPtr;
-  } else {
+  }
+  else
+  {
     srcPtr = devPtr;
     dstPtr = hostPtr;
   }
 
   std::vector<double> times;
   const size_t numIters = 20;
-  for (size_t i = 0; i < numIters; ++i) {
+  for (size_t i = 0; i < numIters; ++i)
+  {
     nvtxRangePush("dst");
     auto start = std::chrono::high_resolution_clock::now();
     RT_CHECK(cudaMemcpy(dstPtr, srcPtr, count, cudaMemcpyDefault));
@@ -62,42 +69,39 @@ static void pinned_bw(const int dstDev, const int srcDev, const size_t count) {
   RT_CHECK(cudaFree(devPtr));
 }
 
-int main(void) {
+int main(void)
+{
 
   const size_t numNodes = numa_max_node();
 
   const long pageSize = sysconf(_SC_PAGESIZE);
 
-  int numDevs;
-  RT_CHECK(cudaGetDeviceCount(&numDevs));
-
-  std::vector<int> devIds;
-  std::vector<int> numaIds;
-  for (int dev = 0; dev < numDevs; ++dev) {
-    devIds.push_back(dev);
-  }
-  for (int numa = 0; numa < numNodes; ++numa) {
-    numaIds.push_back(numa);
-  }
+  std::vector<Device> gpus = get_gpus();
+  std::vector<Device> cpus = get_cpus();
 
   // print header
   printf("Transfer Size (MB)");
-  for (const auto dev : devIds) {
-    printf(",%d:%d", cudaCpuDeviceId, dev);
+  for (const auto cpu : cpus)
+  {
+    for (const auto gpu : gpus)
+    {
+      printf(",%s:%s", cpu.name().c_str(), gpu.name().c_str());
+    }
   }
-  for (const auto dev : devIds) {
-    printf(",%d:%d", dev, cudaCpuDeviceId);
-  }
+
   printf("\n");
 
-  for (size_t count = 2048; count <= 1 * 1024ul * 1024ul * 1024ul; count *= 2) {
+  for (size_t count = 2048; count <= 1 * 1024ul * 1024ul * 1024ul; count *= 2)
+  {
     printf("%f", count / 1024.0 / 1024.0);
-    for (const auto dev : devIds) {
-      pinned_bw(dev, cudaCpuDeviceId, count);
+    for (const auto cpu : cpus)
+    {
+      for (const auto gpu : gpus)
+      {
+        pinned_bw(cpu, gpu, count);
+      }
     }
-    for (const auto dev : devIds) {
-      pinned_bw(cudaCpuDeviceId, dev, count);
-    }
+
     printf("\n");
   }
 

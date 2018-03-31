@@ -3,8 +3,10 @@
 
 #include <iostream>
 #include <vector>
+#include <cassert>
 
 #include <numa.h>
+#include <errno.h>
 
 #include <cuda_runtime_api.h>
 #include <cuda.h>
@@ -47,7 +49,7 @@ public:
   Device() {}
   Device(const bool cpu, const int id) : cpu_(cpu), id_(id) {}
 
-  std::string name()
+  std::string name() const
   {
     std::string s;
     if (is_cpu())
@@ -64,6 +66,7 @@ public:
   bool is_cpu() const { return cpu_; }
   bool is_gpu() const { return !cpu_; }
   int cuda_device_id() { return is_cpu() ? cudaCpuDeviceId : id_; }
+  int id() const { return id_; }
 
 private:
   bool cpu_;
@@ -97,6 +100,20 @@ inline std::vector<Device> get_cpus()
   else
   {
     return {{Device(true, 0)}};
+  }
+}
+
+void bind_cpu(const Device &d)
+{
+  if (numa_available())
+  {
+    if (d.is_cpu())
+    {
+      bitmask *mask = numa_allocate_nodemask();
+      assert(0 == numa_node_to_cpus(d.id(), mask));
+      numa_bind(mask);
+      numa_free_nodemask(mask);
+    }
   }
 }
 
