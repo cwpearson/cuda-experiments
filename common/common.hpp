@@ -3,8 +3,10 @@
 
 #include <iostream>
 #include <vector>
+#include <cstdint>
 #include <set>
 #include <cassert>
+#include <algorithm>
 
 #include <numa.h>
 #include <errno.h>
@@ -91,7 +93,8 @@ inline std::vector<Device> get_cpus()
   if (-1 != numa_available())
   {
     std::set<int> nodes;
-    for (int i = 0 ; i < numa_num_configured_cpus(); ++i) {
+    for (int i = 0; i < numa_num_configured_cpus(); ++i)
+    {
       nodes.insert(numa_node_of_cpu(i));
     }
     const int numNodes = nodes.size();
@@ -121,6 +124,33 @@ void bind_cpu(const Device &d)
       numa_free_nodemask(mask);
     }
   }
+}
+
+std::vector<int64_t> sequence_geometric(int64_t min, int64_t max, double step)
+{
+  double min_d = static_cast<double>(min);
+  double max_d = static_cast<double>(max);
+
+  std::vector<int64_t> seq;
+
+  for (double i = min_d; i < max_d; i *= step)
+  {
+    seq.push_back(i);
+  }
+  return seq;
+}
+
+std::vector<int64_t> merge(const std::vector<int64_t> &a, const std::vector<int64_t> &b)
+{
+  std::vector<int64_t> seq(a.size() + b.size());
+  std::vector<int64_t> a_s(a);
+  std::vector<int64_t> b_s(b);
+  std::sort(a_s.begin(), a_s.end());
+  std::sort(b_s.begin(), b_s.end());
+  std::merge(a_s.begin(), a_s.end(), b_s.begin(), b_s.end(), seq.begin());
+  auto end = std::unique(seq.begin(), seq.end());
+  seq.resize(std::distance(seq.begin(), end));
+  return seq;
 }
 
 #endif
