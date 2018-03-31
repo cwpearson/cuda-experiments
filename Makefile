@@ -1,3 +1,5 @@
+USE_THIRDPARTY=0
+
 NVCC = nvcc
 
 #NVCC_VER_MAJOR := $(shell nvcc -V | grep -oP "release \K([0-9]{1,}\.)+[0-9]{1,}")
@@ -39,6 +41,10 @@ MODULES = access-counters \
 # Look in each module for include files
 #NVCCFLAGS += $(patsubst %,-I%,$(MODULES)) -I. -lineinfo
 NVCCFLAGS += -I. -lineinfo $(GENCODE) -lnuma
+
+ifeq ($(USE_THIRDPARTY),1)
+NVCCFLAGS += -Ithirdparty/include -Lthirdparty/lib -Xcompiler '"-Wl,-rpath=thirdparty/lib"'
+endif
 
 #each module will add to this
 TARGETS :=
