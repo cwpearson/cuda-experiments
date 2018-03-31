@@ -87,9 +87,10 @@ inline std::vector<Device> get_gpus()
 
 inline std::vector<Device> get_cpus()
 {
-  if (numa_available())
+  if (-1 != numa_available())
   {
-    const int numNodes = numa_max_node();
+    const int numNodes = numa_max_node() + 1;
+    std::cerr << numNodes << "\n";
     std::vector<Device> cpus(numNodes);
     for (int i = 0; i < numNodes; ++i)
     {
@@ -105,7 +106,7 @@ inline std::vector<Device> get_cpus()
 
 void bind_cpu(const Device &d)
 {
-  if (numa_available())
+  if (-1 != numa_available())
   {
     if (d.is_cpu())
     {

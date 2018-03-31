@@ -2,5 +2,5 @@ MODULE := pinned
 
 TARGETS += $(MODULE)/main
 
-$(MODULE)/main: $(MODULE)/main.cu
-	$(NVCC) $(NVCCFLAGS) $^ -std=c++11 -Xcompiler -Wall,-Wextra,-O3 -o $@ -lcuda -lnvToolsExt -lnuma
+$(MODULE)/main: $(MODULE)/main.cu common/common.hpp
+	$(NVCC) $(NVCCFLAGS) $< -std=c++11 -Xcompiler -Wall,-Wextra,-O3 -o $@ -lcuda -lnvToolsExt -lnuma
