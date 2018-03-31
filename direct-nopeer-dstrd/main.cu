@@ -15,12 +15,38 @@
 
 #include "common/common.hpp"
 
+template <typename data_type>
+__global__ void gpu_read(data_type *ptr, const size_t stride, const size_t count)
+{
+  const size_t gx = blockIdx.x * blockDim.x + threadIdx.x;
+  const size_t wx = gx >> 5;            // warp id
+  const size_t lx = threadIdx.x & 0x1F; // lane id
+  const size_t warpsInGrid = gridDim.x * blockDim.x / 32;
+
+  const size_t dataInStride = stride / sizeof(data_type);
+  const size_t dataInCount = count / sizeof(data_type);
+
+  data_type acc = 0;
+
+  for (size_t i = wx * dataInStride; i < dataInCount; i += warpsInGrid * dataInStride)
+  {
+    for (size_t strideOff = lx; strideOff < dataInStride; strideOff += 32)
+    {
+      acc += ptr[i + strideOff];
+    }
+  }
+  if (wx * dataInStride < dataInCount)
+  {
+    ptr[wx * dataInStride] = acc;
+  }
+}
+
 static void gpu_gpu_bw(const Device &dst, const Device &src, const size_t count)
 {
 
   assert(src.is_gpu() && dst.is_gpu());
 
-  void *srcPtr, *dstPtr;
+  int *srcPtr;
 
   RT_CHECK(cudaSetDevice(src.id()));
   RT_CHECK(cudaMalloc(&srcPtr, count));
@@ -32,7 +58,6 @@ static void gpu_gpu_bw(const Device &dst, const Device &src, const size_t count)
     }
   }
   RT_CHECK(cudaSetDevice(dst.id()));
-  RT_CHECK(cudaMalloc(&dstPtr, count));
   {
     cudaError_t err = cudaDeviceDisablePeerAccess(src.id());
     if (err != cudaErrorPeerAccessNotEnabled)
@@ -41,13 +66,24 @@ static void gpu_gpu_bw(const Device &dst, const Device &src, const size_t count)
     }
   }
 
+  // fill up GPU with blocks
+  const size_t numMps = num_mps(dst);
+  const size_t maxBlocksPerMp = max_blocks_per_mp(dst);
+  const size_t maxThreadsPerMp = max_threads_per_mp(dst);
+  dim3 gridDim(numMps * maxBlocksPerMp);
+  dim3 blockDim(maxThreadsPerMp / maxBlocksPerMp);
+
+  const long pageSize = sysconf(_SC_PAGESIZE);
+
   std::vector<double> times;
   const size_t numIters = 20;
   for (size_t i = 0; i < numIters; ++i)
   {
+    RT_CHECK(cudaSetDevice(dst.id()));
+    RT_CHECK(cudaDeviceSynchronize());
     nvtxRangePush("dst");
     auto start = std::chrono::high_resolution_clock::now();
-    RT_CHECK(cudaMemcpy(dstPtr, srcPtr, count, cudaMemcpyDefault));
+    gpu_read<<<gridDim, blockDim>>>(srcPtr, pageSize, count);
     RT_CHECK(cudaDeviceSynchronize());
     auto end = std::chrono::high_resolution_clock::now();
     std::chrono::duration<double> txSeconds = end - start;
@@ -61,15 +97,12 @@ static void gpu_gpu_bw(const Device &dst, const Device &src, const size_t count)
 
   printf(",%.2f", count / 1024.0 / 1024.0 / minTime);
   RT_CHECK(cudaFree(srcPtr));
-  RT_CHECK(cudaFree(dstPtr));
 }
 
 int main(void)
 {
 
   const size_t numNodes = numa_max_node();
-
-  const long pageSize = sysconf(_SC_PAGESIZE);
 
   std::vector<Device> gpus = get_gpus();
 
@@ -81,6 +114,7 @@ int main(void)
     {
       if (src != dst)
       {
+
         printf(",%s:%s", src.name().c_str(), dst.name().c_str());
       }
     }
