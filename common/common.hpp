@@ -136,6 +136,46 @@ void bind_cpu(const Device &d)
   }
 }
 
+size_t num_mps(const Device &d)
+{
+  assert(d.is_gpu());
+  cudaDeviceProp prop;
+  RT_CHECK(cudaGetDeviceProperties(&prop, d.id()));
+  return prop.multiProcessorCount;
+}
+
+size_t max_threads_per_mp(const Device &d)
+{
+  assert(d.is_gpu());
+  cudaDeviceProp prop;
+  RT_CHECK(cudaGetDeviceProperties(&prop, d.id()));
+  return prop.maxThreadsPerMultiProcessor;
+}
+
+size_t max_blocks_per_mp(const Device &d)
+{
+  assert(d.is_gpu());
+  cudaDeviceProp prop;
+  RT_CHECK(cudaGetDeviceProperties(&prop, d.id()));
+  if (prop.major <= 2)
+  {
+    return 8;
+  }
+  else if (prop.major <= 3)
+  {
+    return 16;
+  }
+  else if (prop.major <= 7)
+  {
+    return 32;
+  }
+  else
+  {
+    assert(0 && "Unexpected CC major version");
+  }
+  return prop.multiProcessorCount;
+}
+
 std::vector<int64_t> sequence_geometric(int64_t min, int64_t max, double step)
 {
   double min_d = static_cast<double>(min);
