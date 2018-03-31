@@ -3,6 +3,7 @@
 
 #include <iostream>
 #include <vector>
+#include <set>
 #include <cassert>
 
 #include <numa.h>
@@ -89,11 +90,16 @@ inline std::vector<Device> get_cpus()
 {
   if (-1 != numa_available())
   {
-    const int numNodes = numa_max_node() + 1;
-    std::vector<Device> cpus(numNodes);
-    for (int i = 0; i < numNodes; ++i)
+    std::set<int> nodes;
+    for (int i = 0 ; i < numa_num_configured_cpus(); ++i) {
+      nodes.insert(numa_node_of_cpu(i));
+    }
+    const int numNodes = nodes.size();
+    assert(nodes.size() >= 1);
+    std::vector<Device> cpus;
+    for (const auto &i : nodes)
     {
-      cpus[i] = Device(true, i);
+      cpus.push_back(Device(true, i));
     }
     return cpus;
   }
