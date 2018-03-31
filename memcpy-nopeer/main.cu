@@ -48,6 +48,7 @@ static void gpu_gpu_bw(const Device &dst, const Device &src, const size_t count)
     nvtxRangePush("dst");
     auto start = std::chrono::high_resolution_clock::now();
     RT_CHECK(cudaMemcpy(dstPtr, srcPtr, count, cudaMemcpyDefault));
+    RT_CHECK(cudaDeviceSynchronize());
     auto end = std::chrono::high_resolution_clock::now();
     std::chrono::duration<double> txSeconds = end - start;
     nvtxRangePop();
