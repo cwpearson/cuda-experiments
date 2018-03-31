@@ -101,7 +101,10 @@ int main(void)
 
   printf("\n");
 
-  for (size_t count = 2048; count <= 1 * 1024ul * 1024ul * 1024ul; count *= 2)
+  auto counts = merge(sequence_geometric(2048, 2 * 1024ul * 1024ul * 1024ul, 2),
+                      sequence_geometric(2048, 2 * 1024ul * 1024ul * 1024ul, 1.5));
+
+  for (auto count : counts)
   {
     printf("%f", count / 1024.0 / 1024.0);
     //cpu->gpu
