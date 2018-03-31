@@ -74,6 +74,7 @@ static void gpu_gpu_bw(const Device &dst, const Device &src, const size_t count)
   for (size_t i = 0; i < numIters; ++i)
   {
     RT_CHECK(cudaSetDevice(dst.id()));
+    RT_CHECK(cudaDeviceSynchronize());
     nvtxRangePush("dst");
     auto start = std::chrono::high_resolution_clock::now();
     gpu_write<<<gridDim, blockDim>>>(srcPtr, pageSize, count);
