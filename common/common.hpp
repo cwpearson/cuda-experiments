@@ -128,11 +128,8 @@ void bind_cpu(const Device &d)
   {
     if (d.is_cpu())
     {
-      // bitmask *mask = numa_allocate_nodemask();
       bitmask *mask = numa_allocate_nodemask();
       numa_bitmask_setbit(mask, d.id());
-      // numa_run_on_node(d.id());
-      // assert(0 == numa_node_to_cpus(d.id(), mask));
       numa_bind(mask);
       numa_free_nodemask(mask);
     }
