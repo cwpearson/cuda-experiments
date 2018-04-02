@@ -45,11 +45,13 @@ MODULES = access-counters \
 
 # Look in each module for include files
 #NVCCFLAGS += $(patsubst %,-I%,$(MODULES)) -I. -lineinfo
-NVCCFLAGS += -I. -lineinfo $(GENCODE) -lnuma
+NVCCFLAGS += -I. -lineinfo $(GENCODE)
 
 ifeq ($(USE_THIRDPARTY),1)
 NVCCFLAGS += -Ithirdparty/include -Lthirdparty/lib -Xcompiler '"-Wl,-rpath=thirdparty/lib"'
 endif
+
+NVCCFLAGS += -lnuma
 
 #each module will add to this
 TARGETS :=

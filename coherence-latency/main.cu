@@ -14,7 +14,7 @@
 #include "common/common.hpp"
 
 template <bool NOOP = false>
-__global__ void gpu_traverse(size_t *ptr, const size_t steps, long long *clocks)
+__global__ void gpu_traverse(size_t *ptr, const size_t steps)
 {
 
   if (NOOP)
@@ -22,15 +22,11 @@ __global__ void gpu_traverse(size_t *ptr, const size_t steps, long long *clocks)
     return;
   }
   size_t next = 0;
-  long long start = clock64();
   for (int i = 0; i < steps; ++i)
   {
     next = ptr[next];
   }
-  long long end = clock64();
   ptr[next] = 1;
-
-  clocks[0] = end - start;
 }
 
 template <bool NOOP = false>
@@ -49,25 +45,41 @@ void cpu_traverse(size_t *ptr, const size_t steps)
   ptr[next] = 1;
 }
 
-static void prefetch_bw(const int dstDev, const size_t steps)
+static void coherence_latency(const Device &dst, const Device &src, const size_t steps)
 {
+
+  assert(src.is_gpu() || dst.is_gpu());
+
+  if (src.is_cpu())
+  {
+    bind_cpu(src);
+  }
+  else if (dst.is_cpu())
+  {
+    bind_cpu(dst);
+  }
 
   // Determine grid dimensions
   dim3 blockDim(1);
   dim3 gridDim(1);
+  const size_t stride = 65536ul * 2ul;
+  const size_t count = sizeof(size_t) * (steps + 1) * stride;
 
   size_t *managedPtr, *explicitPtr;
-  long long *clocks_d, *clocks_h;
 
-  RT_CHECK(cudaSetDevice(dstDev));
-  RT_CHECK(cudaMalloc(&clocks_d, sizeof(long long)));
-  clocks_h = new long long;
+  // explicit dst allocation
+  if (dst.is_gpu())
+  {
+    RT_CHECK(cudaSetDevice(dst.id()));
+    RT_CHECK(cudaMalloc(&explicitPtr, count));
+  }
+  else if (dst.is_cpu())
+  {
+    explicitPtr = new size_t[count / sizeof(size_t)];
+  }
 
-  const size_t stride = 65536ul * 2ul;
-
-  const size_t count = sizeof(size_t) * (steps + 1) * stride;
+  // managed allocation
   RT_CHECK(cudaMallocManaged(&managedPtr, count));
-  RT_CHECK(cudaMalloc(&explicitPtr, count));
 
   // set up stride
   for (size_t i = 0; i < steps; ++i)
@@ -82,47 +94,60 @@ static void prefetch_bw(const int dstDev, const size_t steps)
   for (size_t i = 0; i < numIters; ++i)
   {
     // Try to get allocation on source
-    nvtxRangePush("prefetch to cpu");
-    RT_CHECK(cudaMemPrefetchAsync(managedPtr, count, cudaCpuDeviceId));
+    nvtxRangePush("prefetch to src");
+    RT_CHECK(cudaMemPrefetchAsync(managedPtr, count, src.cuda_device_id()));
     RT_CHECK(cudaDeviceSynchronize());
     nvtxRangePop();
 
     // Access from Device and Time
     nvtxRangePush("managed traverse");
     auto start = std::chrono::high_resolution_clock::now();
-    gpu_traverse<<<gridDim, blockDim>>>(managedPtr, steps, clocks_d);
-    RT_CHECK(cudaDeviceSynchronize());
+    if (dst.is_gpu())
+    {
+      gpu_traverse<<<gridDim, blockDim>>>(managedPtr, steps);
+      RT_CHECK(cudaDeviceSynchronize());
+    }
+    else
+    {
+      cpu_traverse(managedPtr, steps);
+    }
     auto end = std::chrono::high_resolution_clock::now();
     nvtxRangePop();
-    RT_CHECK(cudaMemcpy(clocks_h, clocks_d, sizeof(long long), cudaMemcpyDefault));
     managedTimes.push_back((end - start).count() / 1e3);
-
-    // std::cout << ":" << *clocks_h << " " << (end - start).count() << "\n";
 
     // Explicit traverse
     nvtxRangePush("explicit traverse");
     start = std::chrono::high_resolution_clock::now();
-    gpu_traverse<<<gridDim, blockDim>>>(explicitPtr, steps, clocks_d);
-    RT_CHECK(cudaDeviceSynchronize());
+    if (dst.is_gpu())
+    {
+      gpu_traverse<<<gridDim, blockDim>>>(explicitPtr, steps);
+      RT_CHECK(cudaDeviceSynchronize());
+    }
+    else
+    {
+      cpu_traverse(explicitPtr, steps);
+    }
     end = std::chrono::high_resolution_clock::now();
     nvtxRangePop();
-    RT_CHECK(cudaMemcpy(clocks_h, clocks_d, sizeof(long long), cudaMemcpyDefault));
     explicitTimes.push_back((end - start).count() / 1e3);
-
-    // std::cout << ":" << *clocks_h << " " << (end - start).count() << "\n";
   }
 
-  printf("%lu", steps);
   assert(managedTimes.size());
   const double minTime = *std::min_element(managedTimes.begin(), managedTimes.end());
   const double minExplicitTime = *std::min_element(explicitTimes.begin(), explicitTimes.end());
   const double avgTime = std::accumulate(managedTimes.begin(), managedTimes.end(), 0.0) / managedTimes.size();
 
   printf(",%.2f,%.2f", minTime, minExplicitTime);
-  RT_CHECK(cudaFree(explicitPtr));
+  if (dst.is_gpu())
+  {
+    RT_CHECK(cudaFree(explicitPtr));
+  }
+  else
+  {
+    delete[] explicitPtr;
+  }
+  explicitPtr = nullptr;
   RT_CHECK(cudaFree(managedPtr));
-  RT_CHECK(cudaFree(clocks_d));
-  delete clocks_h;
 }
 
 int main(void)
@@ -130,30 +155,46 @@ int main(void)
 
   const long pageSize = sysconf(_SC_PAGESIZE);
 
-  int numDevs;
-  RT_CHECK(cudaGetDeviceCount(&numDevs));
-
-  std::vector<int> devIds;
-  for (int dev = 0; dev < numDevs; ++dev)
+  std::vector<Device> gpus = get_gpus();
+  std::vector<Device> cpus = get_cpus();
+  std::vector<Device> devs;
+  for (const auto &d : gpus)
   {
-    devIds.push_back(dev);
+    devs.push_back(d);
+  }
+  for (const auto &d : cpus)
+  {
+    devs.push_back(d);
   }
 
   // print header
   printf("# Strides");
 
-  for (const auto dst : devIds)
+  for (const auto src : devs)
   {
-    printf(",GPU%d Traversal Time (us) [managed], GPU%d Traversal Time (us) [explicit]", dst, dst);
+    for (const auto dst : devs)
+    {
+      if (src != dst && (src.is_gpu() || dst.is_gpu()))
+      {
+        printf(",%s:%s Traversal Time (us) [managed], %s:%s Traversal Time (us) [explicit]", src.name().c_str(), dst.name().c_str(), src.name().c_str(), dst.name().c_str());
+      }
+    }
   }
 
   printf("\n");
 
-  for (size_t numSteps = 4; numSteps < 24; ++numSteps)
+  for (size_t numSteps = 4; numSteps < 34; ++numSteps)
   {
-    for (const auto dst : devIds)
+    printf("%d", numSteps);
+    for (const auto src : devs)
     {
-      prefetch_bw(dst, numSteps);
+      for (const auto dst : devs)
+      {
+        if (src != dst && (src.is_gpu() || dst.is_gpu()))
+        {
+          coherence_latency(dst, src, numSteps);
+        }
+      }
     }
     printf("\n");
   }

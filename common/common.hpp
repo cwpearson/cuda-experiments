@@ -68,7 +68,7 @@ public:
   }
   bool is_cpu() const { return cpu_; }
   bool is_gpu() const { return !cpu_; }
-  int cuda_device_id() { return is_cpu() ? cudaCpuDeviceId : id_; }
+  int cuda_device_id() const { return is_cpu() ? cudaCpuDeviceId : id_; }
   int id() const { return id_; }
 
   bool operator==(const Device &other) const
