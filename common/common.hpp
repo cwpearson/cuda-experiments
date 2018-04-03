@@ -201,6 +201,41 @@ public:
     return s;
   }
 
+  static Sequence neighborhood(const Sequence &orig, const double window_scale, const size_t window_elems)
+  {
+    Sequence s;
+
+    for (const auto &val : orig)
+    {
+      for (size_t i = 0; i < window_elems; ++i)
+      {
+        double mod = window_scale / (window_elems / 2) * i;
+        s.seq_.push_back(val / mod);
+        s.seq_.push_back(val * mod);
+      }
+      s.seq_.push_back(val);
+    }
+
+    std::sort(s.seq_.begin(), s.seq_.end());
+
+    return s;
+  }
+
+  static Sequence geometric_nbrhood(value_type min, value_type max, double step)
+  {
+    double min_d = static_cast<double>(min);
+    double max_d = static_cast<double>(max);
+
+    Sequence s;
+
+    for (double i = min_d; i < max_d; i *= step)
+    {
+      s.seq_.push_back(i);
+    }
+
+    return s;
+  }
+
   Sequence &operator|=(const Sequence &rhs)
   {
     std::vector<value_type> newSeq(seq_.size() + rhs.seq_.size());
