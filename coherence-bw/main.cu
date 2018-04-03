@@ -61,24 +61,24 @@ __global__ void gpu_write(data_type *ptr, const size_t count, const size_t strid
   }
 }
 
-static void prefetch_bw(const int dstDev, const int srcDev, const size_t count, const size_t stride)
+static void prefetch_bw(const Device &dstDev, const Device &srcDev, const size_t count, const size_t stride)
 {
 
-  if (srcDev != cudaCpuDeviceId)
+  if (srcDev.is_gpu())
   {
-    RT_CHECK(cudaSetDevice(srcDev));
+    RT_CHECK(cudaSetDevice(srcDev.cuda_device_id()));
     RT_CHECK(cudaFree(0));
   }
 
-  if (dstDev != cudaCpuDeviceId)
+  if (dstDev.is_gpu())
   {
-    RT_CHECK(cudaSetDevice(dstDev));
+    RT_CHECK(cudaSetDevice(dstDev.cuda_device_id()));
     RT_CHECK(cudaFree(0));
   }
 
-  if (srcDev != cudaCpuDeviceId)
+  if (srcDev.is_gpu())
   {
-    RT_CHECK(cudaSetDevice(srcDev));
+    RT_CHECK(cudaSetDevice(srcDev.cuda_device_id()));
   }
 
   // Determine grid dimensions
@@ -96,19 +96,19 @@ static void prefetch_bw(const int dstDev, const int srcDev, const size_t count, 
   {
     // Try to get allocation on source
     nvtxRangePush("prefetch to src");
-    RT_CHECK(cudaMemPrefetchAsync(ptr, count, srcDev));
+    RT_CHECK(cudaMemPrefetchAsync(ptr, count, srcDev.cuda_device_id()));
     RT_CHECK(cudaDeviceSynchronize());
     nvtxRangePop();
 
-    if (dstDev != cudaCpuDeviceId)
+    if (dstDev.is_gpu())
     {
-      RT_CHECK(cudaSetDevice(dstDev));
+      RT_CHECK(cudaSetDevice(dstDev.cuda_device_id()));
     }
 
     // Access from Device and Time
     nvtxRangePush("dst");
     auto start = std::chrono::high_resolution_clock::now();
-    if (cudaCpuDeviceId == dstDev)
+    if (dstDev.is_cpu())
     {
       cpu_write((int *)ptr, count, stride);
     }
@@ -138,37 +138,54 @@ int main(void)
   int numDevs;
   RT_CHECK(cudaGetDeviceCount(&numDevs));
 
-  std::vector<int> devIds;
-  for (int dev = 0; dev < numDevs; ++dev)
+  auto gpus = get_gpus();
+  auto cpus = get_cpus();
+  auto devs = gpus;
+  for (auto c : cpus)
   {
-    devIds.push_back(dev);
+    devs.push_back(c);
   }
-  devIds.push_back(cudaCpuDeviceId);
+
+  size_t freeMem = -1ul;
+  for (auto d : devs)
+  {
+    if (d.is_gpu())
+    {
+      size_t fr, to;
+      RT_CHECK(cudaMemGetInfo(&fr, &to));
+
+      if (fr < freeMem)
+      {
+        freeMem = fr;
+      }
+    }
+  }
 
   // print header
   printf("Transfer Size (MB),");
-  for (const auto src : devIds)
+  for (const auto src : devs)
   {
-    for (const auto dst : devIds)
+    for (const auto dst : devs)
     {
       if (src != dst)
       {
-        printf("%d:%d,", src, dst);
+        printf("%s to %s,", src.name().c_str(), dst.name().c_str());
       }
     }
   }
   printf("\n");
 
-  auto counts = Sequence::geometric(2048, 4ul * 1024ul * 1024ul * 1024ul, 2) |
-                Sequence::geometric(2048, 4ul * 1024ul * 1024ul * 1024ul, 1.5) |
-                Sequence::geometric(2048, 4ul * 1024ul * 1024ul * 1024ul, 1.3);
+  auto counts = Sequence::neighborhood(
+      Sequence::geometric(2048, freeMem, 2) |
+          Sequence::geometric(2048 * 1.5, freeMem, 2),
+      0.1, 1);
 
   for (auto count : counts)
   {
     printf("%f", count / 1024.0 / 1024.0);
-    for (const auto src : devIds)
+    for (const auto src : devs)
     {
-      for (const auto dst : devIds)
+      for (const auto dst : devs)
       {
         if (src != dst)
         {

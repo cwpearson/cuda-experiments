@@ -207,31 +207,16 @@ public:
 
     for (const auto &val : orig)
     {
-      for (size_t i = 0; i < window_elems; ++i)
+      for (size_t i = 1; i <= window_elems; ++i)
       {
-        double mod = window_scale / (window_elems / 2) * i;
-        s.seq_.push_back(val / mod);
-        s.seq_.push_back(val * mod);
+        double mod = window_scale * (i / static_cast<double>(window_elems));
+        s.seq_.push_back(val * (1.0 + mod));
+        s.seq_.push_back(val / (1.0 + mod));
       }
       s.seq_.push_back(val);
     }
 
     std::sort(s.seq_.begin(), s.seq_.end());
-
-    return s;
-  }
-
-  static Sequence geometric_nbrhood(value_type min, value_type max, double step)
-  {
-    double min_d = static_cast<double>(min);
-    double max_d = static_cast<double>(max);
-
-    Sequence s;
-
-    for (double i = min_d; i < max_d; i *= step)
-    {
-      s.seq_.push_back(i);
-    }
 
     return s;
   }
