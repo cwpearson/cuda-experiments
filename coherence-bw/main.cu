@@ -159,8 +159,9 @@ int main(void)
   }
   printf("\n");
 
-  auto counts = Sequence::geometric(2048, 4ul * 1024ul * 1024ul * 0124ul, 2);
-  counts |= Sequence::geometric(2048, 4ul * 1024ul * 1024ul * 0124ul, 1.5);
+  auto counts = Sequence::geometric(2048, 4ul * 1024ul * 1024ul * 1024ul, 2) |
+                Sequence::geometric(2048, 4ul * 1024ul * 1024ul * 1024ul, 1.5) |
+                Sequence::geometric(2048, 4ul * 1024ul * 1024ul * 1024ul, 1.3);
 
   for (auto count : counts)
   {
