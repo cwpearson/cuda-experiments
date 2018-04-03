@@ -88,8 +88,8 @@ int main(void)
 
   printf("\n");
 
-  auto counts = merge(sequence_geometric(2048, 2 * 1024ul * 1024ul * 1024ul, 2),
-                      sequence_geometric(2048, 2 * 1024ul * 1024ul * 1024ul, 1.5));
+  auto counts = Sequence::geometric(2048, 2 * 1024ul * 1024ul * 1024ul, 2) |
+                Sequence::geometric(2048, 2 * 1024ul * 1024ul * 1024ul, 1.5);
 
   for (auto count : counts)
   {

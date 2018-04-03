@@ -38,7 +38,7 @@ void cpu_traverse(size_t *ptr, const size_t steps)
     return;
   }
   size_t next = 0;
-  for (int i = 0; i < steps; ++i)
+  for (size_t i = 0; i < steps; ++i)
   {
     next = ptr[next];
   }
@@ -90,7 +90,7 @@ static void coherence_latency(const Device &dst, const Device &src, const size_t
   RT_CHECK(cudaDeviceSynchronize());
 
   std::vector<double> managedTimes, explicitTimes;
-  const size_t numIters = 10;
+  const size_t numIters = 20;
   for (size_t i = 0; i < numIters; ++i)
   {
     // Try to get allocation on source
@@ -194,7 +194,7 @@ int main(void)
 
   for (size_t numSteps = 4; numSteps < 34; ++numSteps)
   {
-    printf("%d", numSteps);
+    printf("%lu", numSteps);
     for (const auto src : devs)
     {
       for (const auto dst : devs)

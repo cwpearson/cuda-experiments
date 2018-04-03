@@ -176,31 +176,86 @@ size_t max_blocks_per_mp(const Device &d)
   return prop.multiProcessorCount;
 }
 
-std::vector<int64_t> sequence_geometric(int64_t min, int64_t max, double step)
+class Sequence
 {
-  double min_d = static_cast<double>(min);
-  double max_d = static_cast<double>(max);
+public:
+  typedef int64_t value_type;
+  typedef std::vector<value_type> container_type;
 
-  std::vector<int64_t> seq;
+private:
+  container_type seq_;
 
-  for (double i = min_d; i < max_d; i *= step)
+public:
+  static Sequence geometric(value_type min, value_type max, double step)
   {
-    seq.push_back(i);
-  }
-  return seq;
-}
+    double min_d = static_cast<double>(min);
+    double max_d = static_cast<double>(max);
 
-std::vector<int64_t> merge(const std::vector<int64_t> &a, const std::vector<int64_t> &b)
-{
-  std::vector<int64_t> seq(a.size() + b.size());
-  std::vector<int64_t> a_s(a);
-  std::vector<int64_t> b_s(b);
-  std::sort(a_s.begin(), a_s.end());
-  std::sort(b_s.begin(), b_s.end());
-  std::merge(a_s.begin(), a_s.end(), b_s.begin(), b_s.end(), seq.begin());
-  auto end = std::unique(seq.begin(), seq.end());
-  seq.resize(std::distance(seq.begin(), end));
-  return seq;
-}
+    Sequence s;
+
+    for (double i = min_d; i < max_d; i *= step)
+    {
+      s.seq_.push_back(i);
+    }
+
+    return s;
+  }
+
+  Sequence &operator|=(const Sequence &rhs)
+  {
+    std::vector<value_type> newSeq(seq_.size() + rhs.seq_.size());
+
+    std::merge(seq_.begin(), seq_.end(), rhs.seq_.begin(), rhs.seq_.end(), newSeq.begin());
+    auto end = std::unique(newSeq.begin(), newSeq.end());
+    newSeq.resize(std::distance(newSeq.begin(), end));
+    seq_ = std::move(newSeq);
+
+    return *this;
+  }
+
+  Sequence operator|(const Sequence &rhs)
+  {
+    Sequence s = *this;
+    return s |= rhs;
+  }
+
+  container_type::const_iterator begin() const
+  {
+    return seq_.begin();
+  }
+
+  container_type::const_iterator end() const
+  {
+    return seq_.end();
+  }
+};
+
+// std::vector<int64_t>
+// sequence_geometric(int64_t min, int64_t max, double step)
+// {
+//   double min_d = static_cast<double>(min);
+//   double max_d = static_cast<double>(max);
+
+//   std::vector<int64_t> seq;
+
+//   for (double i = min_d; i < max_d; i *= step)
+//   {
+//     seq.push_back(i);
+//   }
+//   return seq;
+// }
+
+// std::vector<int64_t> merge(const std::vector<int64_t> &a, const std::vector<int64_t> &b)
+// {
+//   std::vector<int64_t> seq(a.size() + b.size());
+//   std::vector<int64_t> a_s(a);
+//   std::vector<int64_t> b_s(b);
+//   std::sort(a_s.begin(), a_s.end());
+//   std::sort(b_s.begin(), b_s.end());
+//   std::merge(a_s.begin(), a_s.end(), b_s.begin(), b_s.end(), seq.begin());
+//   auto end = std::unique(seq.begin(), seq.end());
+//   seq.resize(std::distance(seq.begin(), end));
+//   return seq;
+// }
 
 #endif

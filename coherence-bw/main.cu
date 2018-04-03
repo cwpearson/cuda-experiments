@@ -159,7 +159,10 @@ int main(void)
   }
   printf("\n");
 
-  for (size_t count = 2048; count <= 4 * 1024ul * 1024ul * 1024ul; count *= 2)
+  auto counts = Sequence::geometric(2048, 4ul * 1024ul * 1024ul * 0124ul, 2);
+  counts |= Sequence::geometric(2048, 4ul * 1024ul * 1024ul * 0124ul, 1.5);
+
+  for (auto count : counts)
   {
     printf("%f", count / 1024.0 / 1024.0);
     for (const auto src : devIds)
