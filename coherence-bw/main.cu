@@ -91,7 +91,7 @@ static void prefetch_bw(const Device &dstDev, const Device &srcDev, const size_t
   RT_CHECK(cudaMallocManaged(&ptr, count));
 
   std::vector<double> times;
-  const size_t numIters = 20;
+  const size_t numIters = 15;
   for (size_t i = 0; i < numIters; ++i)
   {
     // Try to get allocation on source
@@ -175,10 +175,8 @@ int main(void)
   }
   printf("\n");
 
-  auto counts = Sequence::neighborhood(
-      Sequence::geometric(2048, freeMem, 2) |
-          Sequence::geometric(2048 * 1.5, freeMem, 2),
-      0.1, 1);
+  auto counts = Sequence::geometric(2048, freeMem, 2) |
+                Sequence::geometric(2048 * 1.5, freeMem, 2);
 
   for (auto count : counts)
   {
