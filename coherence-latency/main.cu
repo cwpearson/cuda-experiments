@@ -70,7 +70,7 @@ static void coherence_latency(const Device &dst, const Device &src, const size_t
   // explicit dst allocation
   if (dst.is_gpu())
   {
-    RT_CHECK(cudaSetDevice(dst.id()));
+    RT_CHECK(cudaSetDevice(dst.cuda_device_id()));
     RT_CHECK(cudaMalloc(&explicitPtr, count));
   }
   else if (dst.is_cpu())
@@ -96,7 +96,16 @@ static void coherence_latency(const Device &dst, const Device &src, const size_t
     // Try to get allocation on source
     nvtxRangePush("prefetch to src");
     RT_CHECK(cudaMemPrefetchAsync(managedPtr, count, src.cuda_device_id()));
-    RT_CHECK(cudaDeviceSynchronize());
+    if (src.is_gpu())
+    {
+      RT_CHECK(cudaSetDevice(src.cuda_device_id()));
+      RT_CHECK(cudaDeviceSynchronize());
+    }
+    if (dst.is_gpu())
+    {
+      RT_CHECK(cudaSetDevice(dst.cuda_device_id()));
+      RT_CHECK(cudaDeviceSynchronize());
+    }
     nvtxRangePop();
 
     // Access from Device and Time
