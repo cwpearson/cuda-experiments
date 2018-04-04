@@ -9,12 +9,13 @@ DRIVER_VERSION := $(shell nvidia-smi | grep -oP "Driver Version: \K([0-9]{1,}\.)
 $(info $(NVCC_VER_MAJOR) "/" $(DRIVER_VERSION) )
 
 ifeq ($(NVCC_VER_MAJOR),9)
-MODULES += coherence-bw \
+MODULES += \
+	coherence-bw \
 	coherence-latency \
 	cpu-touch \
-           mgpu-sync \
-           system-atomics
-	prefetch-bw \
+	mgpu-sync \
+	system-atomics \
+	prefetch-bw 
 GENCODE := -gencode arch=compute_50,code=compute_50 \
            -gencode arch=compute_52,code=compute_52 \
            -gencode arch=compute_60,code=compute_60 \
@@ -25,7 +26,7 @@ else ifeq ($(NVCC_VER_MAJOR),8)
 MODULES += coherence-bw \
 	coherence-latency \
 	cpu-touch \
-	prefetch-bw \
+	prefetch-bw 
 
 GENCODE := -gencode arch=compute_60,code=compute_60 \
            -gencode arch=compute_61,code=compute_61 \
@@ -82,3 +83,9 @@ all: $(TARGETS)
 
 clean:
 	rm -f $(TARGETS) $(CLEAN_TARGETS)
+
+bench: $(TARGETS)
+	for m in $(MODULES); do \
+		echo $$m; \
+		$$m/main >> $$m.csv; \
+	done;
