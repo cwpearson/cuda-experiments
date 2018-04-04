@@ -160,11 +160,11 @@ std::string Device::name() const
   std::string s;
   if (is_cpu())
   {
-    s = "cpu";
+    s = "CPU";
   }
   else
   {
-    s = "gpu";
+    s = "GPU";
   }
 
   return s + std::to_string(id_);
@@ -183,4 +183,3 @@ bool Device::operator!=(const Device &other) const
 {
   return !((*this) == other);
 }
-

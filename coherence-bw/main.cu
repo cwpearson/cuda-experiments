@@ -170,7 +170,7 @@ int main(void)
     {
       if (src != dst && (src.is_gpu() || dst.is_gpu()))
       {
-        printf("%s to %s,", src.name().c_str(), dst.name().c_str());
+        printf("%s to %s (coherence),", src.name().c_str(), dst.name().c_str());
       }
     }
   }
