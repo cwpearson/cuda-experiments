@@ -9,18 +9,31 @@ DRIVER_VERSION := $(shell nvidia-smi | grep -oP "Driver Version: \K([0-9]{1,}\.)
 $(info $(NVCC_VER_MAJOR) "/" $(DRIVER_VERSION) )
 
 ifeq ($(NVCC_VER_MAJOR),9)
-MODULES += mgpu-sync \
+MODULES += coherence-bw \
+	coherence-latency \
+	cpu-touch \
+           mgpu-sync \
            system-atomics
+	prefetch-bw \
 GENCODE := -gencode arch=compute_50,code=compute_50 \
            -gencode arch=compute_52,code=compute_52 \
            -gencode arch=compute_60,code=compute_60 \
            -gencode arch=compute_61,code=compute_61 \
-		   -gencode arch=compute_62,code=compute_62 \
-		   -gencode arch=compute_70,code=compute_70
+           -gencode arch=compute_62,code=compute_62 \
+           -gencode arch=compute_70,code=compute_70
 else ifeq ($(NVCC_VER_MAJOR),8)
+MODULES += coherence-bw \
+	coherence-latency \
+	cpu-touch \
+	prefetch-bw \
+
 GENCODE := -gencode arch=compute_60,code=compute_60 \
            -gencode arch=compute_61,code=compute_61 \
-		   -gencode arch=compute_62,code=compute_62
+           -gencode arch=compute_62,code=compute_62
+else ifeq ($(NVCC_VER_MAJOR),7)
+GENCODE := -gencode arch=compute_35,code=compute_35 \
+           -gencode arch=compute_50,code=compute_50 \
+           -gencode arch=compute_52,code=compute_52
 else
 $(error Unrecognized nvcc version)
 endif
@@ -29,9 +42,6 @@ MODULES = common \
 	access-counters \
 	atomics \
 	atomics.1 \
-	coherence-bw \
-	coherence-latency \
-	cpu-touch \
 	ctx \
 	direct-peer-srcwr \
 	direct-peer-dstrd \
@@ -39,7 +49,6 @@ MODULES = common \
 	memcpy-peer \
 	pageable \
 	pinned \
-	prefetch-bw \
 	stream-thread \
 	stream-warp \
 	wc

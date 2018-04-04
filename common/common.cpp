@@ -171,7 +171,18 @@ std::string Device::name() const
 }
 bool Device::is_cpu() const { return cpu_; }
 bool Device::is_gpu() const { return !cpu_; }
-int Device::cuda_device_id() const { return is_cpu() ? cudaCpuDeviceId : id_; }
+
+
+int Device::cuda_device_id() const { if (is_cpu()) {
+#if __CUDACC_VER_MAJOR__ > 7
+return cudaCpuDeviceId;
+#else
+assert(0 && "CPUs do not have a CUDA device ID");
+#endif
+} else { return id_; }
+}
+
+
 int Device::id() const { return id_; }
 
 bool Device::operator==(const Device &other) const
