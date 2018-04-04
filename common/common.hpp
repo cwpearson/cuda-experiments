@@ -49,37 +49,17 @@ inline void drAssert(CUresult code, const char *file, int line, bool abort = tru
 class Device
 {
 public:
-  Device() {}
-  Device(const bool cpu, const int id) : cpu_(cpu), id_(id) {}
+  Device();
+  Device(const bool cpu, const int id);
 
-  std::string name() const
-  {
-    std::string s;
-    if (is_cpu())
-    {
-      s = "cpu";
-    }
-    else
-    {
-      s = "gpu";
-    }
+  std::string name() const;
+  bool is_cpu() const;
+  bool is_gpu() const;
+  int cuda_device_id() const;
+  int id() const;
 
-    return s + std::to_string(id_);
-  }
-  bool is_cpu() const { return cpu_; }
-  bool is_gpu() const { return !cpu_; }
-  int cuda_device_id() const { return is_cpu() ? cudaCpuDeviceId : id_; }
-  int id() const { return id_; }
-
-  bool operator==(const Device &other) const
-  {
-    return (cpu_ == other.cpu_) && (id_ == other.id_);
-  }
-
-  bool operator!=(const Device &other) const
-  {
-    return !((*this) == other);
-  }
+  bool operator==(const Device &other) const;
+  bool operator!=(const Device &other) const;
 
 private:
   bool cpu_;
@@ -88,7 +68,6 @@ private:
 
 std::vector<Device> get_gpus();
 std::vector<Device> get_cpus();
-
 void bind_cpu(const Device &d);
 size_t num_mps(const Device &d);
 size_t max_threads_per_mp(const Device &d);
@@ -104,35 +83,14 @@ private:
   container_type seq_;
 
 public:
-  static Sequence geometric(value_type min, value_type max, double step)
-  {
-    double min_d = static_cast<double>(min);
-    double max_d = static_cast<double>(max);
-
-    Sequence s;
-
-    for (double i = min_d; i < max_d; i *= step)
-    {
-      s.seq_.push_back(i);
-    }
-
-    return s;
-  }
-
+  static Sequence geometric(value_type min, value_type max, double step);
   static Sequence neighborhood(const Sequence &orig, const double window_scale, const size_t window_elems);
 
   Sequence &operator|=(const Sequence &rhs);
   Sequence operator|(const Sequence &rhs) const;
 
-  container_type::const_iterator begin() const
-  {
-    return seq_.begin();
-  }
-
-  container_type::const_iterator end() const
-  {
-    return seq_.end();
-  }
+  container_type::const_iterator begin() const;
+  container_type::const_iterator end() const;
 };
 
 #endif

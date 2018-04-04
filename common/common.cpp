@@ -38,6 +38,31 @@ Sequence Sequence::operator|(const Sequence &rhs) const
   return s |= rhs;
 }
 
+Sequence Sequence::geometric(value_type min, value_type max, double step)
+{
+  double min_d = static_cast<double>(min);
+  double max_d = static_cast<double>(max);
+
+  Sequence s;
+
+  for (double i = min_d; i < max_d; i *= step)
+  {
+    s.seq_.push_back(i);
+  }
+
+  return s;
+}
+
+Sequence::container_type::const_iterator Sequence::begin() const
+{
+  return seq_.begin();
+}
+
+Sequence::container_type::const_iterator Sequence::end() const
+{
+  return seq_.end();
+}
+
 void bind_cpu(const Device &d)
 {
   if (-1 != numa_available())
@@ -126,3 +151,36 @@ std::vector<Device> get_cpus()
     return {{Device(true, 0)}};
   }
 }
+
+Device::Device() {}
+Device::Device(const bool cpu, const int id) : cpu_(cpu), id_(id) {}
+
+std::string Device::name() const
+{
+  std::string s;
+  if (is_cpu())
+  {
+    s = "cpu";
+  }
+  else
+  {
+    s = "gpu";
+  }
+
+  return s + std::to_string(id_);
+}
+bool Device::is_cpu() const { return cpu_; }
+bool Device::is_gpu() const { return !cpu_; }
+int Device::cuda_device_id() const { return is_cpu() ? cudaCpuDeviceId : id_; }
+int Device::id() const { return id_; }
+
+bool Device::operator==(const Device &other) const
+{
+  return (cpu_ == other.cpu_) && (id_ == other.id_);
+}
+
+bool Device::operator!=(const Device &other) const
+{
+  return !((*this) == other);
+}
+
