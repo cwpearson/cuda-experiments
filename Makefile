@@ -52,6 +52,7 @@ MODULES = common \
 	pinned \
 	stream-thread \
 	stream-warp \
+	um-cc35-bw \
 	wc
 
 # Look in each module for include files
@@ -59,10 +60,10 @@ MODULES = common \
 NVCCFLAGS += -I. -lineinfo $(GENCODE)
 
 ifeq ($(USE_THIRDPARTY),1)
-NVCCFLAGS += -Ithirdparty/include -Lthirdparty/lib -Xcompiler '"-Wl,-rpath=thirdparty/lib"'
+NVCCFLAGS += -Ithirdparty/include 
 endif
 
-NVCCFLAGS += -lnuma
+NVCC_LD_FLAGS += -lnuma -lnvToolsExt -Lthirdparty/lib -Xcompiler '"-Wl,-rpath=thirdparty/lib"'
 
 #each module will add to this
 TARGETS :=

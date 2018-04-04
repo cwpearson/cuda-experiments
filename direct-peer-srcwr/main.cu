@@ -99,6 +99,11 @@ int main(void)
   const size_t numNodes = numa_max_node();
 
   std::vector<Device> gpus = get_gpus();
+  if (gpus.size() < 2)
+  {
+    std::cerr << "Not enough GPUs\n";
+    return 1;
+  }
 
   // print header
   printf("Transfer Size (MB)");
