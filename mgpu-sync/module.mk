@@ -1,9 +1,10 @@
 MODULE := mgpu-sync
 
-TARGETS += $(MODULE)/main $(MODULE)/main.ptx
+TARGETS += $(MODULE)/main
+CLEAN_TARGETS += $(MODULE)/main.o $(MODULE)/main.ptx
 
-$(MODULE)/main: mgpu-sync/main.cu
-	$(NVCC) $(NVCCFLAGS) $^ -std=c++11 -Xcompiler -Wall,-Wextra,-O3 -rdc=true -o $@ -lnvToolsExt
+$(MODULE)/main: $(MODULE)/main.o common/common.o
+	$(NVCC) $(NVCCFLAGS) $^ -std=c++11 -Xcompiler -Wall,-Wextra,-O3 -o $@ -lcuda -lnvToolsExt -lnuma
 
-$(MODULE)/main.ptx: mgpu-sync/main.cu
+$(MODULE)/main.ptx: $(MODULE)/main.cu
 	$(NVCC) $(NVCCFLAGS) $^ -std=c++11 -Xcompiler -Wall,-Wextra,-O3 -rdc=true -ptx -src-in-ptx -o $@ -lnvToolsExt

@@ -25,7 +25,8 @@ else
 $(error Unrecognized nvcc version)
 endif
 
-MODULES = access-counters \
+MODULES = common \
+	access-counters \
 	atomics \
 	atomics.1 \
 	coherence-bw \
@@ -55,14 +56,18 @@ NVCCFLAGS += -lnuma
 
 #each module will add to this
 TARGETS :=
+CLEAN_TARGETS :=
 
 #include the description for
 #each module
 include $(patsubst %,%/module.mk,$(MODULES))
+
+%.o: %.cu
+	$(NVCC) $(NVCCFLAGS) $< -std=c++11 -Xcompiler -Wall,-Wextra,-O3 -o $@ -c
 
 .PHONY : all
 .DEFAULT_GOAL := all
 all: $(TARGETS)
 
 clean:
-	rm -f $(TARGETS)
+	rm -f $(TARGETS) $(CLEAN_TARGETS)

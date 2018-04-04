@@ -1,6 +1,7 @@
 MODULE := memcpy-peer
 
 TARGETS += $(MODULE)/main
+CLEAN_TARGETS += $(MODULE)/main.o
 
-$(MODULE)/main: $(MODULE)/main.cu common/common.hpp
-	$(NVCC) $(NVCCFLAGS) $< -std=c++11 -Xcompiler -Wall,-Wextra,-O3 -o $@ -lcuda -lnvToolsExt -lnuma
+$(MODULE)/main: $(MODULE)/main.o common/common.o
+	$(NVCC) $(NVCCFLAGS) $^ -std=c++11 -Xcompiler -Wall,-Wextra,-O3 -o $@ -lcuda -lnvToolsExt -lnuma

@@ -6,6 +6,7 @@
 *.fatbin
 
 **/main
+**/*.o
 results
 
 thirdparty/include

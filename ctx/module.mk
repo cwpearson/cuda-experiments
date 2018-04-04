@@ -1,4 +1,7 @@
-TARGETS += ctx/main
+MODULE := ctx
 
-ctx/main: ctx/main.cu
-	$(NVCC) $(NVCCFLAGS) $^ -std=c++11 -G -g -o $@ -ldl -lcuda -lnvToolsExt
+TARGETS += $(MODULE)/main
+CLEAN_TARGETS += $(MODULE)/main.o
+
+$(MODULE)/main: $(MODULE)/main.o common/common.o
+	$(NVCC) $(NVCCFLAGS) $^ -std=c++11 -Xcompiler -Wall,-Wextra,-O3 -o $@ -lcuda -lnvToolsExt -lnuma
