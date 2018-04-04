@@ -167,7 +167,7 @@ int main(void)
   {
     for (const auto dst : devs)
     {
-      if (src != dst)
+      if (src != dst && (src.is_gpu() || dst.is_gpu()))
       {
         printf("%s to %s,", src.name().c_str(), dst.name().c_str());
       }
@@ -185,7 +185,7 @@ int main(void)
     {
       for (const auto dst : devs)
       {
-        if (src != dst)
+        if (src != dst && (src.is_gpu() || dst.is_gpu()))
         {
           prefetch_bw(dst, src, count, pageSize);
         }
