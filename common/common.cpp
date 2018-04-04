@@ -117,6 +117,26 @@ size_t max_blocks_per_mp(const Device &d)
   return prop.multiProcessorCount;
 }
 
+size_t gpu_free_memory(const std::vector<Device> &devs)
+{
+  size_t freeMem = -1ul;
+  for (auto d : devs)
+  {
+    if (d.is_gpu())
+    {
+      size_t fr, to;
+      RT_CHECK(cudaMemGetInfo(&fr, &to));
+
+      if (fr < freeMem)
+      {
+        freeMem = fr;
+      }
+    }
+  }
+  assert(freeMem != -1ul);
+  return freeMem;
+}
+
 std::vector<Device> get_gpus()
 {
   int numDevices;
@@ -172,16 +192,21 @@ std::string Device::name() const
 bool Device::is_cpu() const { return cpu_; }
 bool Device::is_gpu() const { return !cpu_; }
 
-
-int Device::cuda_device_id() const { if (is_cpu()) {
+int Device::cuda_device_id() const
+{
+  if (is_cpu())
+  {
 #if __CUDACC_VER_MAJOR__ > 7
-return cudaCpuDeviceId;
+    return cudaCpuDeviceId;
 #else
-assert(0 && "CPUs do not have a CUDA device ID");
+    assert(0 && "CPUs do not have a CUDA device ID");
 #endif
-} else { return id_; }
+  }
+  else
+  {
+    return id_;
+  }
 }
-
 
 int Device::id() const { return id_; }
 

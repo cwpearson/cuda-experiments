@@ -86,7 +86,7 @@ int main(void)
   {
     for (const auto gpu : gpus)
     {
-      printf(",%s:%s", cpu.name().c_str(), gpu.name().c_str());
+      printf(",%s to %s (pinned)", cpu.name().c_str(), gpu.name().c_str());
     }
   }
   //gpu->cpu
@@ -94,14 +94,15 @@ int main(void)
   {
     for (const auto gpu : gpus)
     {
-      printf(",%s:%s", gpu.name().c_str(), cpu.name().c_str());
+      printf(",%s to %s (pinned)", gpu.name().c_str(), cpu.name().c_str());
     }
   }
 
   printf("\n");
 
-  auto counts = Sequence::geometric(2048, 4ul * 1024ul * 1024ul * 1024ul, 2) |
-                Sequence::geometric(2048, 4ul * 1024ul * 1024ul * 1024ul, 1.5);
+  auto freeMem = gpu_free_memory(gpus);
+  auto counts = Sequence::geometric(2048, freeMem, 2) |
+                Sequence::geometric(2048 * 1.5, freeMem, 2);
 
   for (auto count : counts)
   {
