@@ -113,7 +113,6 @@ std::vector<Device> get_cpus()
     {
       nodes.insert(numa_node_of_cpu(i));
     }
-    const int numNodes = nodes.size();
     assert(nodes.size() >= 1);
     std::vector<Device> cpus;
     for (const auto &i : nodes)
