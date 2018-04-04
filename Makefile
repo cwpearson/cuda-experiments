@@ -57,12 +57,14 @@ NVCCFLAGS += -lnuma
 #each module will add to this
 TARGETS :=
 CLEAN_TARGETS :=
+COMMON_OBJECTS :=
+COMMON_HEADERS :=
 
 #include the description for
 #each module
 include $(patsubst %,%/module.mk,$(MODULES))
 
-%.o: %.cu
+%.o: %.cu $(COMMON_HEADERS)
 	$(NVCC) $(NVCCFLAGS) $< -std=c++11 -Xcompiler -Wall,-Wextra,-O3 -o $@ -c
 
 .PHONY : all

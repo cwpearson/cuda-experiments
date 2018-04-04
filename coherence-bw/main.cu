@@ -19,6 +19,7 @@ void cpu_write(data_type *ptr, const size_t count, const size_t stride)
   const size_t numElems = count / sizeof(data_type);
   const size_t elemsPerStride = stride / sizeof(data_type);
 
+#pragma omp parallel for schedule(static)
   for (size_t i = 0; i < numElems; i += elemsPerStride)
   {
     ptr[i] = i * 31ul + 7ul;
