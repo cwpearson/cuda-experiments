@@ -26,10 +26,12 @@ static void pinned_bw(const Device &dst, const Device &src, const size_t count)
   if (src.is_gpu())
   {
     RT_CHECK(cudaSetDevice(src.id()));
+    bind_cpu(dst);
   }
   else
   {
     RT_CHECK(cudaSetDevice(dst.id()));
+    bind_cpu(src);
   }
 
   RT_CHECK(cudaFree(0));
