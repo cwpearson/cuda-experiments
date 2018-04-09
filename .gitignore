@@ -13,3 +13,5 @@ thirdparty/include
 thirdparty/lib
 thirdparty/share
 thirdparty/bin
+
+config.mk

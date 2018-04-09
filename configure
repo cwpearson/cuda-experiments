@@ -1,0 +1,9 @@
+#! /bin/bash
+
+set -eux -o pipefail
+
+make -C configure min-cc
+
+CUDA_CC=`configure/min-cc`
+
+echo "CUDA_CC=$CUDA_CC" >> config.mk
