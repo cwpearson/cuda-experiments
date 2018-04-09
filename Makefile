@@ -1,3 +1,5 @@
+include config.mk
+
 USE_THIRDPARTY=0
 
 NVCC = nvcc
@@ -9,38 +11,15 @@ DRIVER_VERSION := $(shell nvidia-smi | grep -oP "Driver Version: \K([0-9]{1,}\.)
 
 $(info $(NVCC_VER_MAJOR).$(NVCC_VER_MINOR) "/" $(DRIVER_VERSION) )
 
-ifeq ($(NVCC_VER_MAJOR),9)
-MODULES += \
-	coherence-bw \
-	coherence-latency \
-	cpu-touch \
-	mgpu-sync \
-	system-atomics \
-	prefetch-bw 
-GENCODE := -gencode arch=compute_50,code=compute_50 \
-           -gencode arch=compute_52,code=compute_52 \
-           -gencode arch=compute_60,code=compute_60 \
-           -gencode arch=compute_61,code=compute_61 \
-           -gencode arch=compute_62,code=compute_62 \
-           -gencode arch=compute_70,code=compute_70
-else ifeq ($(NVCC_VER_MAJOR),8)
-MODULES += coherence-bw \
-	coherence-latency \
-	cpu-touch \
-	prefetch-bw 
+GENCODE := -gencode arch=compute_$(CUDA_CC),code=compute_$(CUDA_CC)
 
-GENCODE := -gencode arch=compute_60,code=compute_60 \
-           -gencode arch=compute_61,code=compute_61 \
-           -gencode arch=compute_62,code=compute_62
-else ifeq ($(NVCC_VER_MAJOR),7)
-GENCODE := -gencode arch=compute_35,code=compute_35 \
-           -gencode arch=compute_50,code=compute_50 \
-           -gencode arch=compute_52,code=compute_52
-else
-$(error Unrecognized nvcc version)
-endif
+CC_GT_70 := $(shell echo $(CUDA_CC)\>=70 | bc )
+CC_GT_60 := $(shell echo $(CUDA_CC)\>=60 | bc )
 
-MODULES = common \
+$(info Compute Capability >=70: $(CC_GT_70))
+$(info Compute Capability >=60: $(CC_GT_60))
+
+MODULES += common \
 	access-counters \
 	atomics \
 	atomics.1 \
@@ -55,6 +34,24 @@ MODULES = common \
 	stream-warp \
 	um-cc35-bw \
 	wc
+
+ifeq ($(CC_GT_70),1)
+MODULES += \
+	mgpu-sync \
+	system-atomics
+endif
+
+ifeq ($(CC_GT_60),1)
+MODULES += \
+	coherence-bw \
+	coherence-latency \
+	cpu-touch \
+	prefetch-bw 
+endif
+
+
+
+
 
 # Look in each module for include files
 #NVCCFLAGS += $(patsubst %,-I%,$(MODULES)) -I. -lineinfo
