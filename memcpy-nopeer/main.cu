@@ -81,7 +81,7 @@ int main(void)
     {
       if (src != dst)
       {
-        printf(",%s:%s", src.name().c_str(), dst.name().c_str());
+        printf(",%s to %s (no peer)", src.name().c_str(), dst.name().c_str());
       }
     }
   }

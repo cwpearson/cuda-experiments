@@ -85,7 +85,7 @@ int main(void)
         RT_CHECK(cudaDeviceCanAccessPeer(&can, src.id(), dst.id()));
         if (can)
         {
-          printf(",%s:%s", src.name().c_str(), dst.name().c_str());
+          printf(",%s to %s (peer)", src.name().c_str(), dst.name().c_str());
         }
       }
     }
