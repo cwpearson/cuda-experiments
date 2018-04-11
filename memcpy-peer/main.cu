@@ -93,8 +93,9 @@ int main(void)
 
   printf("\n");
 
-  auto counts = Sequence::geometric(2048, 4ul * 1024ul * 1024ul * 1024ul, 2) |
-                Sequence::geometric(2048, 4ul * 1024ul * 1024ul * 1024ul, 1.5);
+  auto freeMem = gpu_free_memory(gpus);
+  auto counts = Sequence::geometric(2048, freeMem, 2) |
+                Sequence::geometric(2048 * 1.5, freeMem, 2);
 
   for (auto count : counts)
   {
