@@ -1,0 +1,20 @@
+language: minimal
+
+sudo: required
+
+services:
+  - docker
+
+env:
+  REPO cwpearson/cuda-experiments
+
+script:
+  export VER=`if [ "$TRAVIS_BRANCH" == "master" ]; then echo "latest"; else echo $TRAVIS_BRANCH ; fi`
+  echo $VER
+  docker build -f Dockerfile.amd64 Dockerfile.amd64_cuda-8.0_ubuntu14.04 --tag $REPO:amd64-ubuntu14.04-8.0-$VER
+
+before_deploy:
+  docker login -u "$DOCKER_USERNAME" -p "$DOCKER_PASSWORD"
+
+deploy:
+  docker push $REPO
