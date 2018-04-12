@@ -6,8 +6,7 @@ NVCC = nvcc
 
 #NVCC_VER_MAJOR := $(shell nvcc -V | grep -oP "release \K([0-9]{1,}\.)+[0-9]{1,}")
 NVCC_VER_MAJOR := $(shell nvcc -V | grep -oP "release \K([0-9])")
-NVCC_VER_MINOR := $(shell nvcc -V | grep -oP "release [0-9]\.\K([0-9])")
-DRIVER_VERSION := $(shell nvidia-smi | grep -oP "Driver Version: \K([0-9]{1,}\.)+[0-9]{1,}")
+DRIVER_VERSION ?= $(shell nvidia-smi | grep -oP "Driver Version: \K([0-9]{1,}\.)+[0-9]{1,}")
 
 $(info $(NVCC_VER_MAJOR).$(NVCC_VER_MINOR) "/" $(DRIVER_VERSION) )
 
