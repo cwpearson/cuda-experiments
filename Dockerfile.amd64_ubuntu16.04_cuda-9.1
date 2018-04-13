@@ -1,0 +1,14 @@
+FROM nvidia/cuda:9.1-devel-ubuntu16.04
+
+RUN apt-get update && apt-get install -y \
+    bc \
+    make \
+    libnuma-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+RUN mkdir cuda-experiments
+WORKDIR cuda-experiments
+
+ADD . ./
+
+RUN make

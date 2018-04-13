@@ -1,4 +1,4 @@
-FROM nvidia/cuda:8.0-devel-ubuntu14.04
+FROM nvidia/cuda:6.5-devel-ubuntu14.04
 
 RUN apt-get update && apt-get install -y \
     bc \
@@ -11,6 +11,4 @@ WORKDIR cuda-experiments
 
 ADD . ./
 
-RUN echo "CUDA_CC=60" >> config.mk
-RUN echo "DRIVER_VERSION=375" >> config.mk
 RUN make

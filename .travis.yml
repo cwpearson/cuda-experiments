@@ -11,7 +11,10 @@ env:
 script:
   - export VER=`if [ "$TRAVIS_BRANCH" == "master" ]; then echo "latest"; else echo $TRAVIS_BRANCH ; fi`
   - echo $VER
-  - docker build -f Dockerfile.amd64_cuda-8.0_ubuntu14.04 --tag $REPO:amd64-ubuntu14.04-8.0-$VER .
+  - docker build -f Dockerfile.amd64_ubuntu14.04_cuda-6.5 --tag $REPO:amd64-ubuntu14.04-6.5-$VER .
+  - docker build -f Dockerfile.amd64_ubuntu14.04_cuda-7.0 --tag $REPO:amd64-ubuntu14.04-7.0-$VER .
+  - docker build -f Dockerfile.amd64_ubuntu14.04_cuda-8.0 --tag $REPO:amd64-ubuntu14.04-8.0-$VER .
+  - docker build -f Dockerfile.amd64_ubuntu16.04_cuda-9.1 --tag $REPO:amd64-ubuntu16.04-9.1-$VER .
 
 after_success:
   docker login -u "$DOCKER_USERNAME" -p "$DOCKER_PASSWORD"
