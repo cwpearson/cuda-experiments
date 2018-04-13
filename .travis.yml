@@ -17,5 +17,5 @@ script:
   - docker build -f Dockerfile.amd64_ubuntu16.04_cuda-9.1 --tag $REPO:amd64-ubuntu16.04-9.1-$VER .
 
 after_success:
-  docker login -u "$DOCKER_USERNAME" -p "$DOCKER_PASSWORD"
-  docker push $REPO
+  - docker login -u "$DOCKER_USERNAME" -p "$DOCKER_PASSWORD"
+  - docker push $REPO
