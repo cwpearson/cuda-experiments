@@ -6,8 +6,10 @@
 #include <vector>
 #include <algorithm>
 #include <numeric>
+#include <cstring>
 
 #include <unistd.h>
+#include <omp.h>
 
 #include "common/common.hpp"
 #include "op.hpp"
@@ -27,6 +29,7 @@ static void prefetch_bw(const Device &dstDev, const Device &srcDev, const size_t
 #error "woah"
 #endif
   double *ptr = static_cast<double *>(aligned_alloc(pageSize, count));
+  std::memset(ptr, 0, count);
 
 #ifdef OP_RD
   bind_cpu(dstDev);
@@ -37,15 +40,17 @@ static void prefetch_bw(const Device &dstDev, const Device &srcDev, const size_t
 #endif
 
   std::vector<double> times;
+  double dummy;
   const size_t numIters = 15;
   for (size_t i = 0; i < numIters; ++i)
   {
     // Access from Device and Time
+
     auto start = std::chrono::high_resolution_clock::now();
 #ifdef OP_RD
-    cpu_read_8(ptr, count, stride);
+    cpu_read_8(&dummy, ptr, count, stride);
 #elif OP_WR
-    cpu_write_8(ptr, count, stride);
+    cpu_write_8(&dummy, ptr, count, stride);
 #else
 #error "woah"
 #endif
@@ -71,7 +76,7 @@ int main(void)
   {
     for (const auto dst : cpus)
     {
-      if (src != dst)
+      // if (src != dst)
       {
         printf("%s to %s,", src.name().c_str(), dst.name().c_str());
       }
@@ -89,7 +94,7 @@ int main(void)
     {
       for (const auto dst : cpus)
       {
-        if (src != dst)
+        // if (src != dst)
         {
           prefetch_bw(dst, src, count, 8);
         }
