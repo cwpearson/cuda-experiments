@@ -16,7 +16,7 @@
 #include "common/common.hpp"
 #include "op.hpp"
 
-static void memcpy_bw(const Device &dstDev, const Device &srcDev, const size_t count)
+static void memcpy_bw(const Device &dstDev, const Device &srcDev, const size_t count, const size_t par)
 {
 
   assert(srcDev.is_cpu() && dstDev.is_cpu());
@@ -30,21 +30,15 @@ static void memcpy_bw(const Device &dstDev, const Device &srcDev, const size_t c
   double *dstPtr = static_cast<double *>(aligned_alloc(pageSize, count));
   std::memset(dstPtr, 0, count);
 
-  // set number of openmp threads
-  size_t nCpus = 0;
 #ifdef OP_DST
   bind_cpu(dstDev);
-  nCpus = num_cpus(dstDev);
 #elif OP_SRC
   bind_cpu(srcDev);
-  nCpus = num_cpus(srcDev);
 #else
 #error "woah"
 #endif
 
-  assert(nCpus > 0);
-  //printf("\n::%d::\n", num_cpus);
-  omp_set_num_threads(nCpus);
+  omp_set_num_threads(par);
 
 // bind affinity for openmp threads too
 #pragma omp parallel
@@ -61,7 +55,7 @@ static void memcpy_bw(const Device &dstDev, const Device &srcDev, const size_t c
 
   std::vector<double> times;
   const size_t numIters = 15;
-  const size_t elemsPerCpu = (count / sizeof(*dstPtr)) / nCpus;
+  const size_t elemsPerCpu = (count / sizeof(*dstPtr)) / par;
   for (size_t i = 0; i < numIters; ++i)
   {
 
@@ -70,7 +64,7 @@ static void memcpy_bw(const Device &dstDev, const Device &srcDev, const size_t c
       auto start = std::chrono::high_resolution_clock::now();
 
 #pragma omp parallel for schedule(static)
-      for (size_t i = 0; i < nCpus; ++i)
+      for (size_t i = 0; i < par; ++i)
       {
         std::memcpy(&dstPtr[i * elemsPerCpu], &srcPtr[i * elemsPerCpu], elemsPerCpu * sizeof(*dstPtr));
       }
@@ -97,13 +91,19 @@ int main(void)
   numa_exit_on_error = 1;
   auto cpus = get_cpus();
 
+  size_t numCpusPerNode = min_cpus_per_node(cpus);
+  numCpusPerNode = std::min(size_t(16), numCpusPerNode);
+
   // print header
   printf("Transfer Size (MB),");
-  for (const auto src : cpus)
+  for (size_t par = 1; par <= numCpusPerNode; par *= 2)
   {
-    for (const auto dst : cpus)
+    for (const auto src : cpus)
     {
-      printf("%s to %s,", src.name().c_str(), dst.name().c_str());
+      for (const auto dst : cpus)
+      {
+        printf("%s to %s (%lu),", src.name().c_str(), dst.name().c_str(), par);
+      }
     }
   }
   printf("\n");
@@ -118,11 +118,14 @@ int main(void)
   for (auto count : counts)
   {
     printf("%f", count / 1024.0 / 1024.0);
-    for (const auto src : cpus)
+    for (size_t par = 1; par <= numCpusPerNode; par *= 2)
     {
-      for (const auto dst : cpus)
+      for (const auto src : cpus)
       {
-        memcpy_bw(dst, src, count);
+        for (const auto dst : cpus)
+        {
+          memcpy_bw(dst, src, count, par);
+        }
       }
     }
     printf("\n");

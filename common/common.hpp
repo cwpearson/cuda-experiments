@@ -33,6 +33,7 @@ size_t max_threads_per_mp(const Device &d);
 size_t max_blocks_per_mp(const Device &d);
 size_t gpu_free_memory(const std::vector<Device> &devs);
 long long cpu_free_memory(const std::vector<Device> &devs);
+size_t min_cpus_per_node(const std::vector<Device> &devs);
 
 class Sequence
 {

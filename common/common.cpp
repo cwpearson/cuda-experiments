@@ -173,6 +173,23 @@ long long cpu_free_memory(const std::vector<Device> &devs)
   return freeMem;
 }
 
+size_t min_cpus_per_node(const std::vector<Device> &devs)
+{
+
+  assert(!devs.empty());
+  size_t nCpus = SIZE_MAX;
+
+  long long freeMem = LLONG_MAX;
+  for (auto d : devs)
+  {
+    if (d.is_cpu())
+    {
+      nCpus = std::min(num_cpus(d), nCpus);
+    }
+  }
+  return nCpus;
+}
+
 std::vector<Device> get_gpus()
 {
   int numDevices;
