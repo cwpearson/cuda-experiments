@@ -10,9 +10,18 @@
 
 #include <unistd.h>
 #include <omp.h>
+#include <numa.h>
 
 #include "common/common.hpp"
 #include "op.hpp"
+
+static int get_num_cpus(const Device &d) {
+  bitmask *mask = numa_allocate_cpumask();
+  numa_node_to_cpus(d.id(), mask);
+  int num_cpus = numa_bitmask_weight(mask);
+  numa_free_cpumask(mask);
+  return num_cpus;
+}
 
 static void prefetch_bw(const Device &dstDev, const Device &srcDev, const size_t count, const size_t stride)
 {
@@ -22,6 +31,7 @@ static void prefetch_bw(const Device &dstDev, const Device &srcDev, const size_t
 
   // create source allocation
 #ifdef OP_RD
+  //printf("\nalloc on %s\n", srcDev.name().c_str());
   bind_cpu(srcDev);
 #elif OP_WR
   bind_cpu(dstDev);
@@ -31,13 +41,32 @@ static void prefetch_bw(const Device &dstDev, const Device &srcDev, const size_t
   double *ptr = static_cast<double *>(aligned_alloc(pageSize, count));
   std::memset(ptr, 0, count);
 
+int num_cpus = 0;
 #ifdef OP_RD
+  bind_cpu(dstDev);
+  num_cpus = get_num_cpus(dstDev);
+#elif OP_WR
+  bind_cpu(srcDev);
+  num_cpus = get_num_cpus(srcDev);
+#else
+#error "woah"
+#endif
+
+  assert(num_cpus >0);
+  //printf("\n::%d::\n", num_cpus);
+  omp_set_num_threads(num_cpus);
+
+#pragma omp parallel
+{
+#ifdef OP_RD
+  //printf("\nrd on %s\n", dstDev.name().c_str());
   bind_cpu(dstDev);
 #elif OP_WR
   bind_cpu(srcDev);
 #else
 #error "woah"
 #endif
+}
 
   std::vector<double> times;
   double dummy;
@@ -68,6 +97,8 @@ static void prefetch_bw(const Device &dstDev, const Device &srcDev, const size_t
 
 int main(void)
 {
+  numa_set_strict(1);
+  numa_exit_on_error = 1;
   auto cpus = get_cpus();
 
   // print header

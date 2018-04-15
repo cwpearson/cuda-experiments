@@ -79,7 +79,9 @@ void bind_cpu(const Device &d)
     {
       bitmask *mask = numa_allocate_nodemask();
       numa_bitmask_setbit(mask, d.id());
-      numa_bind(mask);
+      assert(0 == numa_run_on_node_mask(mask));
+      numa_set_membind(mask);
+      //numa_bind(mask);
       numa_free_nodemask(mask);
     }
   }
