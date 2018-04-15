@@ -78,7 +78,7 @@ __global__ void gpu_write(data_type *ptr, const size_t count, const size_t strid
 static void prefetch_bw(const Device &dstDev, const Device &srcDev, const size_t count, const size_t stride)
 {
 
-  assert(srcDev.is_gpu() ^ dstDev.is_gpu());
+  assert(!(srcDev.is_cpu() && dstDev.is_cpu()));
 
   if (srcDev.is_gpu())
   {
@@ -203,7 +203,7 @@ int main(void)
   {
     for (const auto dst : devs)
     {
-      if (src != dst && (src.is_gpu() || dst.is_gpu()))
+      if (src != dst && !(src.is_cpu() && dst.is_cpu()))
       {
         printf("%s to %s (coherence),", src.name().c_str(), dst.name().c_str());
       }
@@ -221,7 +221,7 @@ int main(void)
     {
       for (const auto dst : devs)
       {
-        if (src != dst && (src.is_gpu() || dst.is_gpu()))
+        if (src != dst && !(src.is_cpu() && dst.is_cpu()))
         {
           prefetch_bw(dst, src, count, pageSize);
         }
