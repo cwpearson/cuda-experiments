@@ -7,6 +7,7 @@
 #include <algorithm>
 #include <numeric>
 #include <cstring>
+#include <climits>
 
 #include <unistd.h>
 #include <omp.h>
@@ -74,7 +75,9 @@ int num_cpus = 0;
   for (size_t i = 0; i < numIters; ++i)
   {
     // Access from Device and Time
-
+//#pragma omp parallel
+{
+//#pragma omp barrier
     auto start = std::chrono::high_resolution_clock::now();
 #ifdef OP_RD
     cpu_read_8(&dummy, ptr, count, stride);
@@ -83,13 +86,18 @@ int num_cpus = 0;
 #else
 #error "woah"
 #endif
-    auto end = std::chrono::high_resolution_clock::now();
-    std::chrono::duration<double> txSeconds = end - start;
-    times.push_back(txSeconds.count());
+
+//#pragma omp barrier
+//    if (omp_get_thread_num() == 0) {
+      auto end = std::chrono::high_resolution_clock::now();
+      std::chrono::duration<double> txSeconds = end - start;
+      times.push_back(txSeconds.count());
+//    }
   }
+}
 
   const double minTime = *std::min_element(times.begin(), times.end());
-  const double avgTime = std::accumulate(times.begin(), times.end(), 0.0) / times.size();
+  //const double avgTime = std::accumulate(times.begin(), times.end(), 0.0) / times.size();
 
   printf(",%.2f", count / 1024.0 / 1024.0 / minTime);
   free(ptr);
@@ -115,8 +123,17 @@ int main(void)
   }
   printf("\n");
 
-  auto counts = Sequence::geometric(2048, 4ul * 1024ul * 1024ul * 1024ul, 2) |
-                Sequence::geometric(2048 * 1.5, 4ul * 1024ul * 1024ul * 1024ul, 2);
+
+  long long freeMem = LLONG_MAX;
+  for (const auto &d : cpus) {
+  long long freep;
+  numa_node_size64(d.id(), &freep);
+  long long freeMem = std::min(freeMem, freep);
+  }
+  freeMem = std::min(freeMem, 8ll*1024ll*1024ll*1024ll);
+
+  auto counts = Sequence::geometric(2048, freeMem, 2) |
+                Sequence::geometric(2048 * 1.5, freeMem, 2);
 
   for (auto count : counts)
   {

@@ -19,15 +19,12 @@ void cpu_read_8(double *__restrict__ dummy, double *__restrict__ ptr, const size
     const size_t numElems = count / sizeof(double);
     const size_t elemsPerStride = stride / sizeof(double);
 
-#pragma omp parallel
-    {
         double acc = 0;
-#pragma omp for schedule(static)
+#pragma omp parallel for schedule(static)
         for (size_t i = 0; i < numElems; i += elemsPerStride)
         {
             acc += ptr[i];
         }
 
         *dummy += acc;
-    }
 }
