@@ -87,6 +87,16 @@ void bind_cpu(const Device &d)
   }
 }
 
+size_t num_cpus(const Device &d)
+{
+  assert(d.is_cpu());
+  bitmask *mask = numa_allocate_cpumask();
+  numa_node_to_cpus(d.id(), mask);
+  int num_cpus = numa_bitmask_weight(mask);
+  numa_free_cpumask(mask);
+  return num_cpus;
+}
+
 size_t num_mps(const Device &d)
 {
   assert(d.is_gpu());
@@ -144,6 +154,22 @@ size_t gpu_free_memory(const std::vector<Device> &devs)
     }
   }
   assert(freeMem != -1ul);
+  return freeMem;
+}
+
+long long cpu_free_memory(const std::vector<Device> &devs)
+{
+  long long freeMem = LLONG_MAX;
+  for (auto d : devs)
+  {
+    if (d.is_cpu())
+    {
+      long long freep;
+      numa_node_size64(d.id(), &freep);
+      freeMem = std::min(freeMem, freep);
+    }
+  }
+  assert(freeMem != LLONG_MAX);
   return freeMem;
 }
 

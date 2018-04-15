@@ -16,29 +16,26 @@
 #include "common/common.hpp"
 #include "op.hpp"
 
-static void prefetch_bw(const Device &dstDev, const Device &srcDev, const size_t count, const size_t stride)
+static void memcpy_bw(const Device &dstDev, const Device &srcDev, const size_t count)
 {
 
   assert(srcDev.is_cpu() && dstDev.is_cpu());
   const long pageSize = sysconf(_SC_PAGESIZE);
 
-  // create source allocation
-#ifdef OP_RD
-  //printf("\nalloc on %s\n", srcDev.name().c_str());
+  // create allocations
   bind_cpu(srcDev);
-#elif OP_WR
+  double *srcPtr = static_cast<double *>(aligned_alloc(pageSize, count));
+  std::memset(srcPtr, 0, count);
   bind_cpu(dstDev);
-#else
-#error "woah"
-#endif
-  double *ptr = static_cast<double *>(aligned_alloc(pageSize, count));
-  std::memset(ptr, 0, count);
+  double *dstPtr = static_cast<double *>(aligned_alloc(pageSize, count));
+  std::memset(dstPtr, 0, count);
 
-  int nCpus = 0;
-#ifdef OP_RD
+  // set number of openmp threads
+  size_t nCpus = 0;
+#ifdef OP_DST
   bind_cpu(dstDev);
   nCpus = num_cpus(dstDev);
-#elif OP_WR
+#elif OP_SRC
   bind_cpu(srcDev);
   nCpus = num_cpus(srcDev);
 #else
@@ -46,14 +43,16 @@ static void prefetch_bw(const Device &dstDev, const Device &srcDev, const size_t
 #endif
 
   assert(nCpus > 0);
+  //printf("\n::%d::\n", num_cpus);
   omp_set_num_threads(nCpus);
 
+// bind affinity for openmp threads too
 #pragma omp parallel
   {
-#ifdef OP_RD
+#ifdef OP_DST
     //printf("\nrd on %s\n", dstDev.name().c_str());
     bind_cpu(dstDev);
-#elif OP_WR
+#elif OP_SRC
     bind_cpu(srcDev);
 #else
 #error "woah"
@@ -61,29 +60,26 @@ static void prefetch_bw(const Device &dstDev, const Device &srcDev, const size_t
   }
 
   std::vector<double> times;
-  double dummy;
   const size_t numIters = 15;
+  const size_t elemsPerCpu = (count / sizeof(*dstPtr)) / nCpus;
   for (size_t i = 0; i < numIters; ++i)
   {
-    // Access from Device and Time
-    //#pragma omp parallel
+
     {
       //#pragma omp barrier
       auto start = std::chrono::high_resolution_clock::now();
-#ifdef OP_RD
-      cpu_read_8(&dummy, ptr, count, stride);
-#elif OP_WR
-      cpu_write_8(&dummy, ptr, count, stride);
-#else
-#error "woah"
-#endif
 
-      //#pragma omp barrier
-      //    if (omp_get_thread_num() == 0) {
+#pragma omp parallel for schedule(static)
+      for (size_t i = 0; i < nCpus; ++i)
+      {
+        std::memcpy(&dstPtr[i * elemsPerCpu], &srcPtr[i * elemsPerCpu], elemsPerCpu);
+      }
+
       auto end = std::chrono::high_resolution_clock::now();
+      dummy(dstPtr);
+      dummy(srcPtr);
       std::chrono::duration<double> txSeconds = end - start;
       times.push_back(txSeconds.count());
-      //    }
     }
   }
 
@@ -91,7 +87,8 @@ static void prefetch_bw(const Device &dstDev, const Device &srcDev, const size_t
   //const double avgTime = std::accumulate(times.begin(), times.end(), 0.0) / times.size();
 
   printf(",%.2f", count / 1024.0 / 1024.0 / minTime);
-  free(ptr);
+  free(srcPtr);
+  free(dstPtr);
 }
 
 int main(void)
@@ -106,15 +103,13 @@ int main(void)
   {
     for (const auto dst : cpus)
     {
-      if (src != dst)
-      {
-        printf("%s to %s,", src.name().c_str(), dst.name().c_str());
-      }
+      printf("%s to %s,", src.name().c_str(), dst.name().c_str());
     }
   }
   printf("\n");
 
   long long freeMem = cpu_free_memory(cpus);
+  freeMem /= 2; // two allocations
   freeMem = std::min(freeMem, 8ll * 1024ll * 1024ll * 1024ll);
 
   auto counts = Sequence::geometric(2048, freeMem, 2) |
@@ -127,10 +122,7 @@ int main(void)
     {
       for (const auto dst : cpus)
       {
-        if (src != dst)
-        {
-          prefetch_bw(dst, src, count, 8);
-        }
+        memcpy_bw(dst, src, count);
       }
     }
     printf("\n");

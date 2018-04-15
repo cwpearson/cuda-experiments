@@ -30,6 +30,7 @@ MODULES += common \
 	memcpy-peer \
 	pageable \
 	pinned \
+	std-memcpy \
 	um-cc35-bw \
 	wc
 
@@ -77,10 +78,10 @@ COMMON_HEADERS :=
 include $(patsubst %,%/module.mk,$(MODULES))
 
 %.o: %.cu $(COMMON_HEADERS)
-	$(NVCC) $(NVCCFLAGS) $< -std=c++11 -Xcompiler -Wall,-Wextra,-O3 -o $@ -c
+	$(NVCC) $(NVCCFLAGS) $< -std=c++11 -Xcompiler -Wall,-Wextra,-O3,-Wshadow -o $@ -c
 
 %.o: %.cpp $(COMMON_HEADERS)
-	$(CXX) $(CXXFLAGS) $< -std=c++11 -Wall -Wextra -O3 -fopenmp -c -o $@
+	$(CXX) $(CXXFLAGS) $< -std=c++11 -Wall -Wextra -O3 -Wshadow -fopenmp -c -o $@
 
 .PHONY : all
 .DEFAULT_GOAL := all
