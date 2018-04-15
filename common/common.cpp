@@ -1,3 +1,11 @@
+#include <algorithm>
+#include <cassert>
+#include <set>
+
+#include <numa.h>
+#include <cuda_runtime_api.h>
+
+#include "cuda_check.hpp"
 #include "common.hpp"
 
 Sequence Sequence::neighborhood(const Sequence &orig, const double window_scale, const size_t window_elems)

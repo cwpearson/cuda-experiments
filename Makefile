@@ -22,6 +22,7 @@ MODULES += common \
 	access-counters \
 	atomics \
 	atomics.1 \
+	cpu-cpu \
 	ctx \
 	direct-peer-srcwr \
 	direct-peer-dstrd \
@@ -56,9 +57,11 @@ endif
 # Look in each module for include files
 #NVCCFLAGS += $(patsubst %,-I%,$(MODULES)) -I. -lineinfo
 NVCCFLAGS += -I. -lineinfo -Wno-deprecated-gpu-targets
+CXXFLAGS += -I.
 
 ifeq ($(USE_THIRDPARTY),1)
-NVCCFLAGS += -Ithirdparty/include 
+NVCCFLAGS += -Ithirdparty/include
+CXXFLAGS += -Ithirdparty/include 
 endif
 
 NVCC_LD_FLAGS += -lnuma -lnvToolsExt -Lthirdparty/lib -Xcompiler '"-Wl,-rpath=thirdparty/lib"'
@@ -75,6 +78,9 @@ include $(patsubst %,%/module.mk,$(MODULES))
 
 %.o: %.cu $(COMMON_HEADERS)
 	$(NVCC) $(NVCCFLAGS) $< -std=c++11 -Xcompiler -Wall,-Wextra,-O3 -o $@ -c
+
+%.o: %.cpp $(COMMON_HEADERS)
+	$(CXX) $(CXXFLAGS) $< -std=c++11 -Wall -Wextra -O3 -fopenmp -c -o $@
 
 .PHONY : all
 .DEFAULT_GOAL := all
