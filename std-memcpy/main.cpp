@@ -72,7 +72,7 @@ static void memcpy_bw(const Device &dstDev, const Device &srcDev, const size_t c
 #pragma omp parallel for schedule(static)
       for (size_t i = 0; i < nCpus; ++i)
       {
-        std::memcpy(&dstPtr[i * elemsPerCpu], &srcPtr[i * elemsPerCpu], elemsPerCpu);
+        std::memcpy(&dstPtr[i * elemsPerCpu], &srcPtr[i * elemsPerCpu], elemsPerCpu * sizeof(*dstPtr));
       }
 
       auto end = std::chrono::high_resolution_clock::now();
