@@ -19,18 +19,18 @@ static void prefetch_bw(const Device &dstDev, const Device &srcDev, const size_t
   const long pageSize = sysconf(_SC_PAGESIZE);
 
   // create source allocation
-#if OP == RD
+#ifdef OP_RD
   bind_cpu(srcDev);
-#elif OP == WR
+#elif OP_WR
   bind_cpu(dstDev);
 #else
 #error "woah"
 #endif
   double *ptr = static_cast<double *>(aligned_alloc(pageSize, count));
 
-#if OP == RD
+#ifdef OP_RD
   bind_cpu(dstDev);
-#elif OP == WR
+#elif OP_WR
   bind_cpu(srcDev);
 #else
 #error "woah"
@@ -42,11 +42,9 @@ static void prefetch_bw(const Device &dstDev, const Device &srcDev, const size_t
   {
     // Access from Device and Time
     auto start = std::chrono::high_resolution_clock::now();
-#if OP == RD
-    printf("rd\n");
+#ifdef OP_RD
     cpu_read_8(ptr, count, stride);
-#elif OP == WR
-    printf("wr\n");
+#elif OP_WR
     cpu_write_8(ptr, count, stride);
 #else
 #error "woah"
