@@ -10,7 +10,7 @@
 #include <unistd.h>
 
 #include "common/common.hpp"
-#include "read.hpp"
+#include "op.hpp"
 
 static void prefetch_bw(const Device &dstDev, const Device &srcDev, const size_t count, const size_t stride)
 {
@@ -19,21 +19,36 @@ static void prefetch_bw(const Device &dstDev, const Device &srcDev, const size_t
   const long pageSize = sysconf(_SC_PAGESIZE);
 
   // create source allocation
+#if OP == RD
   bind_cpu(srcDev);
-  double *srcPtr = static_cast<double *>(aligned_alloc(pageSize, count));
-
-  // bind to dst
+#elif OP == WR
   bind_cpu(dstDev);
+#else
+#error "woah"
+#endif
+  double *ptr = static_cast<double *>(aligned_alloc(pageSize, count));
+
+#if OP == RD
+  bind_cpu(dstDev);
+#elif OP == WR
+  bind_cpu(srcDev);
+#else
+#error "woah"
+#endif
 
   std::vector<double> times;
   const size_t numIters = 15;
   for (size_t i = 0; i < numIters; ++i)
   {
-    // Try to get allocation on source
-
     // Access from Device and Time
     auto start = std::chrono::high_resolution_clock::now();
-    cpu_write_8(srcPtr, count, stride);
+#if OP == RD
+    cpu_read_8(ptr, count, stride);
+#elif OP == WR
+    cpu_write_8(ptr, count, stride);
+#else
+#error "woah"
+#endif
     auto end = std::chrono::high_resolution_clock::now();
     std::chrono::duration<double> txSeconds = end - start;
     times.push_back(txSeconds.count());
@@ -43,7 +58,7 @@ static void prefetch_bw(const Device &dstDev, const Device &srcDev, const size_t
   const double avgTime = std::accumulate(times.begin(), times.end(), 0.0) / times.size();
 
   printf(",%.2f", count / 1024.0 / 1024.0 / minTime);
-  free(srcPtr);
+  free(ptr);
 }
 
 int main(void)
