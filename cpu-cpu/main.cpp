@@ -43,8 +43,10 @@ static void prefetch_bw(const Device &dstDev, const Device &srcDev, const size_t
     // Access from Device and Time
     auto start = std::chrono::high_resolution_clock::now();
 #if OP == RD
+    printf("rd\n");
     cpu_read_8(ptr, count, stride);
 #elif OP == WR
+    printf("wr\n");
     cpu_write_8(ptr, count, stride);
 #else
 #error "woah"
