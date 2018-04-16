@@ -23,6 +23,7 @@ MODULES += common \
 	atomics \
 	atomics.1 \
 	cpu-cpu \
+	cpu-cpu-df \
 	ctx \
 	direct-peer-srcwr \
 	direct-peer-dstrd \
