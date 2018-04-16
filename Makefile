@@ -31,6 +31,7 @@ MODULES += common \
 	pageable \
 	pinned \
 	std-memcpy \
+	std-memcpy-df \
 	um-cc35-bw \
 	wc
 
