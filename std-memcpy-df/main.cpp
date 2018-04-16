@@ -53,7 +53,7 @@ static void print_samples(const size_t count, const Device &srcDev, const Device
 #endif
   }
 
-  const size_t numIters = 5;
+  const size_t numIters = 15;
   const size_t elemsPerCpu = (count / sizeof(*dstPtr)) / par;
   for (size_t i = 0; i < numIters; ++i)
   {
