@@ -179,7 +179,6 @@ size_t min_cpus_per_node(const std::vector<Device> &devs)
   assert(!devs.empty());
   size_t nCpus = SIZE_MAX;
 
-  long long freeMem = LLONG_MAX;
   for (auto d : devs)
   {
     if (d.is_cpu())
