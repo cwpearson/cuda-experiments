@@ -6,58 +6,68 @@ NVCC = nvcc
 
 #NVCC_VER_MAJOR := $(shell nvcc -V | grep -oP "release \K([0-9]{1,}\.)+[0-9]{1,}")
 NVCC_VER_MAJOR := $(shell nvcc -V | grep -oP "release \K([0-9])")
-DRIVER_VERSION ?= $(shell nvidia-smi | grep -oP "Driver Version: \K([0-9]{1,}\.)+[0-9]{1,}")
+# DRIVER_VERSION ?= $(shell nvidia-smi | grep -oP "Driver Version: \K([0-9]{1,}\.)+[0-9]{1,}")
 
-$(info $(NVCC_VER_MAJOR) "/" $(DRIVER_VERSION) )
+$(info $(NVCC_VER_MAJOR).$(NVCC_VER_MINOR))
 
-GENCODE := -gencode arch=compute_$(CUDA_CC),code=compute_$(CUDA_CC)
+NVCC_GTE_9 := $(shell echo $(NVCC_VER_MAJOR)\>=9 | bc )
+NVCC_GTE_8 := $(shell echo $(NVCC_VER_MAJOR)\>=8 | bc )
+NVCC_GTE_7 := $(shell echo $(NVCC_VER_MAJOR)\>=7 | bc )
+NVCC_GTE_6 := $(shell echo $(NVCC_VER_MAJOR)\>=6 | bc )
 
-CC_GT_70 := $(shell echo $(CUDA_CC)\>=70 | bc )
-CC_GT_60 := $(shell echo $(CUDA_CC)\>=60 | bc )
-
-$(info Compute Capability >=70: $(CC_GT_70))
-$(info Compute Capability >=60: $(CC_GT_60))
+$(info nvcc >= 9: $(NVCC_GTE_9))
+$(info nvcc >= 8: $(NVCC_GTE_8))
+$(info nvcc >= 7: $(NVCC_GTE_7))
+$(info nvcc >= 6: $(NVCC_GTE_6))
 
 MODULES += common \
 	access-counters \
 	atomics \
 	atomics.1 \
+	cpu-cpu \
+	cpu-cpu-df \
 	ctx \
 	direct-peer-srcwr \
 	direct-peer-dstrd \
 	memcpy-nopeer \
 	memcpy-peer \
 	pageable \
+	pageable-host \
 	pinned \
-	stream-thread \
-	stream-warp \
+	std-memcpy \
+	std-memcpy-df \
 	um-cc35-bw \
 	wc
 
-ifeq ($(CC_GT_70),1)
+ifeq ($(NVCC_GTE_9),1)
 MODULES += \
 	mgpu-sync \
 	system-atomics
 endif
 
-ifeq ($(CC_GT_60),1)
+ifeq ($(NVCC_GTE_8),1)
 MODULES += \
 	coherence-bw \
 	coherence-latency \
 	cpu-touch \
-	prefetch-bw 
+	prefetch-bw
 endif
 
-
-
+ifeq ($(NVCC_GTE_7),1)
+MODULES += \
+	stream-thread \
+	stream-warp
+endif
 
 
 # Look in each module for include files
 #NVCCFLAGS += $(patsubst %,-I%,$(MODULES)) -I. -lineinfo
-NVCCFLAGS += -I. -lineinfo $(GENCODE)
+NVCCFLAGS += -I. -lineinfo -Wno-deprecated-gpu-targets
+CXXFLAGS += -I.
 
 ifeq ($(USE_THIRDPARTY),1)
-NVCCFLAGS += -Ithirdparty/include 
+NVCCFLAGS += -Ithirdparty/include
+CXXFLAGS += -Ithirdparty/include 
 endif
 
 NVCC_LD_FLAGS += -lnuma -lnvToolsExt -Lthirdparty/lib -Xcompiler '"-Wl,-rpath=thirdparty/lib"'
@@ -73,7 +83,10 @@ COMMON_HEADERS :=
 include $(patsubst %,%/module.mk,$(MODULES))
 
 %.o: %.cu $(COMMON_HEADERS)
-	$(NVCC) $(NVCCFLAGS) $< -std=c++11 -Xcompiler -Wall,-Wextra,-O3 -o $@ -c
+	$(NVCC) $(NVCCFLAGS) $< -std=c++11 -Xcompiler -Wall,-Wextra,-O3,-Wshadow -o $@ -c
+
+%.o: %.cpp $(COMMON_HEADERS)
+	$(CXX) $(CXXFLAGS) $< -std=c++11 -Wall -Wextra -O3 -Wshadow -fopenmp -c -o $@
 
 .PHONY : all
 .DEFAULT_GOAL := all

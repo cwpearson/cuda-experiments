@@ -1,4 +1,5 @@
 #include <algorithm>
+#include <cstring>
 #include <cassert>
 #include <chrono>
 #include <cstdio>
@@ -13,12 +14,14 @@
 
 #include <unistd.h>
 
+#include "common/cuda_check.hpp"
 #include "common/common.hpp"
 
 static void pinned_bw(const Device &dst, const Device &src, const size_t count)
 {
 
   assert((src.is_cpu()) ^ (dst.is_cpu()));
+  const long pageSize = sysconf(_SC_PAGESIZE);
 
   void *devPtr, *hostPtr;
   void *srcPtr, *dstPtr;
@@ -36,8 +39,9 @@ static void pinned_bw(const Device &dst, const Device &src, const size_t count)
 
   RT_CHECK(cudaFree(0));
   RT_CHECK(cudaMalloc(&devPtr, count));
-  hostPtr = new char[count];
+  hostPtr = aligned_alloc(pageSize, count);
   assert((0 == count) || hostPtr);
+  std::memset(hostPtr, 0, count);
 
   if (src.is_gpu())
   {
@@ -57,6 +61,7 @@ static void pinned_bw(const Device &dst, const Device &src, const size_t count)
     nvtxRangePush("dst");
     auto start = std::chrono::high_resolution_clock::now();
     RT_CHECK(cudaMemcpy(dstPtr, srcPtr, count, cudaMemcpyDefault));
+    RT_CHECK(cudaDeviceSynchronize()); // cudaMemcpy may return before DMA is done for pageable
     auto end = std::chrono::high_resolution_clock::now();
     std::chrono::duration<double> txSeconds = end - start;
     nvtxRangePop();
@@ -68,7 +73,7 @@ static void pinned_bw(const Device &dst, const Device &src, const size_t count)
       std::accumulate(times.begin(), times.end(), 0.0) / times.size();
 
   printf(",%.2f", count / 1024.0 / 1024.0 / minTime);
-  delete[](char *) hostPtr;
+  free(hostPtr);
   RT_CHECK(cudaFree(devPtr));
 }
 
@@ -76,8 +81,6 @@ int main(void)
 {
 
   const size_t numNodes = numa_max_node();
-
-  const long pageSize = sysconf(_SC_PAGESIZE);
 
   std::vector<Device> gpus = get_gpus();
   std::vector<Device> cpus = get_cpus();

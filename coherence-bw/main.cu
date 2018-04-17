@@ -1,4 +1,5 @@
 #include <cstdio>
+#include <cassert>
 #include <cstdlib>
 #include <sstream>
 #include <chrono>
@@ -9,8 +10,20 @@
 #include <nvToolsExt.h>
 
 #include <unistd.h>
+#include <omp.h>
+#include <numa.h>
 
+#include "common/cuda_check.hpp"
 #include "common/common.hpp"
+
+static int get_num_cpus(const Device &d)
+{
+  bitmask *mask = numa_allocate_cpumask();
+  numa_node_to_cpus(d.id(), mask);
+  int num_cpus = numa_bitmask_weight(mask);
+  numa_free_cpumask(mask);
+  return num_cpus;
+}
 
 template <typename data_type>
 void cpu_write(data_type *ptr, const size_t count, const size_t stride)
@@ -65,6 +78,8 @@ __global__ void gpu_write(data_type *ptr, const size_t count, const size_t strid
 static void prefetch_bw(const Device &dstDev, const Device &srcDev, const size_t count, const size_t stride)
 {
 
+  assert(!(srcDev.is_cpu() && dstDev.is_cpu()));
+
   if (srcDev.is_gpu())
   {
     RT_CHECK(cudaSetDevice(srcDev.cuda_device_id()));
@@ -89,6 +104,26 @@ static void prefetch_bw(const Device &dstDev, const Device &srcDev, const size_t
 
   void *ptr;
 
+  // bind to non-cuda device, if present, before allocation or running
+  if (srcDev.is_cpu())
+  {
+    bind_cpu(srcDev);
+    omp_set_num_threads(get_num_cpus(srcDev));
+#pragma omp parallel
+    {
+      bind_cpu(srcDev);
+    }
+  }
+  else if (dstDev.is_cpu())
+  {
+    bind_cpu(dstDev);
+    omp_set_num_threads(get_num_cpus(dstDev));
+#pragma omp parallel
+    {
+      bind_cpu(dstDev);
+    }
+  }
+
   RT_CHECK(cudaMallocManaged(&ptr, count));
 
   std::vector<double> times;
@@ -106,7 +141,7 @@ static void prefetch_bw(const Device &dstDev, const Device &srcDev, const size_t
       RT_CHECK(cudaSetDevice(dstDev.cuda_device_id()));
     }
 
-    // Access from Device and Time
+    // Access from destination and Time
     nvtxRangePush("dst");
     auto start = std::chrono::high_resolution_clock::now();
     if (dstDev.is_cpu())
@@ -168,7 +203,7 @@ int main(void)
   {
     for (const auto dst : devs)
     {
-      if (src != dst && (src.is_gpu() || dst.is_gpu()))
+      if (src != dst && !(src.is_cpu() && dst.is_cpu()))
       {
         printf("%s to %s (coherence),", src.name().c_str(), dst.name().c_str());
       }
@@ -186,7 +221,7 @@ int main(void)
     {
       for (const auto dst : devs)
       {
-        if (src != dst && (src.is_gpu() || dst.is_gpu()))
+        if (src != dst && !(src.is_cpu() && dst.is_cpu()))
         {
           prefetch_bw(dst, src, count, pageSize);
         }

@@ -9,12 +9,14 @@
 
 #include <unistd.h>
 
+#include "common/cuda_check.hpp"
 #include "common/common.hpp"
 
 template <typename data_type, size_t REPEATS = 1024>
 __global__ void
 gpu_touch(data_type *__restrict__ hist, const size_t *__restrict__ idx,
-          double *__restrict__ threadTimes, const bool noop = false) {
+          double *__restrict__ threadTimes, const bool noop = false)
+{
   // global ID
   const size_t gx = blockIdx.x * blockDim.x + threadIdx.x;
   // where to increment
@@ -24,9 +26,11 @@ gpu_touch(data_type *__restrict__ hist, const size_t *__restrict__ idx,
   __syncthreads();
 
   const long long int start = clock64();
-  if (!noop) {
-#pragma unroll(REPEATS)
-    for (size_t iter = 0; iter < REPEATS; ++iter) {
+  if (!noop)
+  {
+#pragma unroll REPEATS
+    for (size_t iter = 0; iter < REPEATS; ++iter)
+    {
       atomicAdd(&hist[voteIdx], gx);
     }
   }
@@ -35,7 +39,8 @@ gpu_touch(data_type *__restrict__ hist, const size_t *__restrict__ idx,
   threadTimes[gx] = double(end - start) / REPEATS;
 }
 
-int main(void) {
+int main(void)
+{
 
   const long pageSize = sysconf(_SC_PAGESIZE);
   std::stringstream buffer;
@@ -53,8 +58,10 @@ int main(void) {
   // const size_t intraWarpConflict;
 
   for (size_t stride = sizeof(data_type); stride <= 1024 * sizeof(data_type);
-       stride *= 2) {
-    for (size_t numWay = 4; numWay <= 4; ++numWay) {
+       stride *= 2)
+  {
+    for (size_t numWay = 4; numWay <= 4; ++numWay)
+    {
 
       assert(stride % sizeof(data_type) == 0);
 
@@ -84,12 +91,16 @@ int main(void) {
       RT_CHECK(cudaMalloc(&idx_d, numThreads * sizeof(size_t)));
 
       // initialize thread access indices
-      for (size_t i = 0; i < numThreads; ++i) {
+      for (size_t i = 0; i < numThreads; ++i)
+      {
         size_t lx = i % 32;
         size_t idx;
-        if (lx < numWay) {
+        if (lx < numWay)
+        {
           idx = 0;
-        } else {
+        }
+        else
+        {
           idx = i;
         }
         idx_h[i] = idx * (stride / sizeof(data_type));

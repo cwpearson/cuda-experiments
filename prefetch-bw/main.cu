@@ -10,6 +10,7 @@
 
 #include <unistd.h>
 
+#include "common/cuda_check.hpp"
 #include "common/common.hpp"
 
 static void prefetch_bw(const Device &dstDev, const Device &srcDev, const size_t count)

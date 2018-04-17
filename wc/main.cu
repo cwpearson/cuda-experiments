@@ -13,6 +13,7 @@
 
 #include <unistd.h>
 
+#include "common/cuda_check.hpp"
 #include "common/common.hpp"
 
 static void pinned_bw(const Device &dst, const Device &src, const size_t count)

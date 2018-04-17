@@ -1,3 +1,11 @@
+#include <algorithm>
+#include <cassert>
+#include <set>
+
+#include <numa.h>
+#include <cuda_runtime_api.h>
+
+#include "cuda_check.hpp"
 #include "common.hpp"
 
 Sequence Sequence::neighborhood(const Sequence &orig, const double window_scale, const size_t window_elems)
@@ -71,10 +79,22 @@ void bind_cpu(const Device &d)
     {
       bitmask *mask = numa_allocate_nodemask();
       numa_bitmask_setbit(mask, d.id());
-      numa_bind(mask);
+      assert(0 == numa_run_on_node_mask(mask));
+      numa_set_membind(mask);
+      //numa_bind(mask);
       numa_free_nodemask(mask);
     }
   }
+}
+
+size_t num_cpus(const Device &d)
+{
+  assert(d.is_cpu());
+  bitmask *mask = numa_allocate_cpumask();
+  numa_node_to_cpus(d.id(), mask);
+  int num_cpus = numa_bitmask_weight(mask);
+  numa_free_cpumask(mask);
+  return num_cpus;
 }
 
 size_t num_mps(const Device &d)
@@ -135,6 +155,38 @@ size_t gpu_free_memory(const std::vector<Device> &devs)
   }
   assert(freeMem != -1ul);
   return freeMem;
+}
+
+long long cpu_free_memory(const std::vector<Device> &devs)
+{
+  long long freeMem = LLONG_MAX;
+  for (auto d : devs)
+  {
+    if (d.is_cpu())
+    {
+      long long freep;
+      numa_node_size64(d.id(), &freep);
+      freeMem = std::min(freeMem, freep);
+    }
+  }
+  assert(freeMem != LLONG_MAX);
+  return freeMem;
+}
+
+size_t min_cpus_per_node(const std::vector<Device> &devs)
+{
+
+  assert(!devs.empty());
+  size_t nCpus = SIZE_MAX;
+
+  for (auto d : devs)
+  {
+    if (d.is_cpu())
+    {
+      nCpus = std::min(num_cpus(d), nCpus);
+    }
+  }
+  return nCpus;
 }
 
 std::vector<Device> get_gpus()

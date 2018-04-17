@@ -10,6 +10,7 @@
 
 #include <unistd.h>
 
+#include "common/cuda_check.hpp"
 #include "common/common.hpp"
 
 size_t touch(char *c, const size_t e, const size_t n)
