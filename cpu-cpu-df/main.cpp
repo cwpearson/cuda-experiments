@@ -105,13 +105,16 @@ int main(void)
 
   for (auto count : counts)
   {
-    for (const auto src : cpus)
+    for (size_t par = 1; par <= numCpusPerNode; par *= 2)
     {
-      for (const auto dst : cpus)
+      for (const auto src : cpus)
       {
-        if (src != dst)
+        for (const auto dst : cpus)
         {
-          prefetch_bw(dst, src, count, 8, numCpusPerNode);
+          if (src != dst)
+          {
+            prefetch_bw(dst, src, count, 8, par);
+          }
         }
       }
     }
