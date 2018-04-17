@@ -1,4 +1,5 @@
 #include <algorithm>
+#include <cstring>
 #include <cassert>
 #include <chrono>
 #include <cstdio>
@@ -40,6 +41,7 @@ static void pinned_bw(const Device &dst, const Device &src, const size_t count)
   RT_CHECK(cudaMalloc(&devPtr, count));
   hostPtr = aligned_alloc(pageSize, count);
   assert((0 == count) || hostPtr);
+  std::memset(hostPtr, 0, count);
 
   if (src.is_gpu())
   {
