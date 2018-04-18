@@ -174,6 +174,33 @@ long long cpu_free_memory(const std::vector<Device> &devs)
   return freeMem;
 }
 
+size_t free_memory(const std::vector<Device> &devs)
+{
+  size_t freeMem = ULLONG_MAX;
+  for (auto d : devs)
+  {
+    if (d.is_cpu())
+    {
+      long long freep;
+      numa_node_size64(d.id(), &freep);
+      freeMem = freep < freeMem ? freep : freeMem;
+    }
+    else if (d.is_gpu())
+    {
+      size_t fr, to;
+      RT_CHECK(cudaMemGetInfo(&fr, &to));
+      freeMem = fr < freeMem ? fr : freeMem;
+    }
+    else
+    {
+      assert(0 && "how did we get here");
+    }
+  }
+
+  assert(freeMem != ULLONG_MAX);
+  return freeMem;
+}
+
 size_t min_cpus_per_node(const std::vector<Device> &devs)
 {
 

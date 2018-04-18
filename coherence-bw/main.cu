@@ -75,7 +75,7 @@ __global__ void gpu_write(data_type *ptr, const size_t count, const size_t strid
   }
 }
 
-static void prefetch_bw(const Device &dstDev, const Device &srcDev, const size_t count, const size_t stride)
+static void prefetch_bw(const Device &dstDev, const Device &srcDev, const size_t count, const size_t stride, const int numIters)
 {
 
   assert(!(srcDev.is_cpu() && dstDev.is_cpu()));
@@ -127,7 +127,6 @@ static void prefetch_bw(const Device &dstDev, const Device &srcDev, const size_t
   RT_CHECK(cudaMallocManaged(&ptr, count));
 
   std::vector<double> times;
-  const size_t numIters = 15;
   for (size_t i = 0; i < numIters; ++i)
   {
     // Try to get allocation on source
@@ -166,36 +165,27 @@ static void prefetch_bw(const Device &dstDev, const Device &srcDev, const size_t
   RT_CHECK(cudaFree(ptr));
 }
 
-int main(void)
+int main(int argc, char **argv)
 {
+  int numIters = 10;
+  std::vector<int> numaIds, gpuIds;
+  option_as_int(argc, argv, "-n", numIters);
+  option_as_int_list(argc, argv, "-c", numaIds);
+  option_as_int_list(argc, argv, "-g", gpuIds);
 
-  const long pageSize = sysconf(_SC_PAGESIZE);
+  auto gpus = get_gpus(gpuIds);
+  auto cpus = get_cpus(numaIds);
 
-  int numDevs;
-  RT_CHECK(cudaGetDeviceCount(&numDevs));
-
-  auto gpus = get_gpus();
-  auto cpus = get_cpus();
   auto devs = gpus;
   for (auto c : cpus)
   {
     devs.push_back(c);
   }
 
-  size_t freeMem = -1ul;
-  for (auto d : devs)
-  {
-    if (d.is_gpu())
-    {
-      size_t fr, to;
-      RT_CHECK(cudaMemGetInfo(&fr, &to));
-
-      if (fr < freeMem)
-      {
-        freeMem = fr;
-      }
-    }
-  }
+  const size_t freeMem = free_memory(devs);
+  const long pageSize = sysconf(_SC_PAGESIZE);
+  auto counts = Sequence::geometric(2048, freeMem, 2) |
+                Sequence::geometric(2048 * 1.5, freeMem, 2);
 
   // print header
   printf("Transfer Size (MB),");
@@ -211,9 +201,6 @@ int main(void)
   }
   printf("\n");
 
-  auto counts = Sequence::geometric(2048, freeMem, 2) |
-                Sequence::geometric(2048 * 1.5, freeMem, 2);
-
   for (auto count : counts)
   {
     printf("%f", count / 1024.0 / 1024.0);
@@ -223,7 +210,7 @@ int main(void)
       {
         if (src != dst && !(src.is_cpu() && dst.is_cpu()))
         {
-          prefetch_bw(dst, src, count, pageSize);
+          prefetch_bw(dst, src, count, pageSize, numIters);
         }
       }
     }
