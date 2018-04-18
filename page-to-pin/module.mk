@@ -1,4 +1,4 @@
-MODULE := pageable-host
+MODULE := page-to-pin
 
 TARGETS += $(MODULE)/main
 CLEAN_TARGETS += $(MODULE)/main.o

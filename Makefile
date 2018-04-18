@@ -30,7 +30,7 @@ MODULES += common \
 	memcpy-nopeer \
 	memcpy-peer \
 	pageable \
-	pageable-host \
+	page-to-pin \
 	pinned \
 	std-memcpy \
 	std-memcpy-df \
