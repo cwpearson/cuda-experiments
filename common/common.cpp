@@ -1,5 +1,6 @@
 #include <algorithm>
 #include <cassert>
+#include <sstream>
 #include <set>
 
 #include <numa.h>
@@ -224,6 +225,48 @@ std::vector<Device> get_cpus()
   }
 }
 
+std::vector<Device> get_gpus(const std::vector<int> &ids)
+{
+  auto gpus = get_gpus();
+  if (ids.empty())
+  {
+    return gpus;
+  }
+
+  std::vector<Device> filtered;
+  for (auto &dev : gpus)
+  {
+    if (std::find(ids.begin(), ids.end(), dev.cuda_device_id()) != ids.end())
+    {
+      filtered.push_back(dev);
+    }
+  }
+
+  return filtered;
+}
+
+std::vector<Device> get_cpus(const std::vector<int> &ids)
+{
+  auto cpus = get_cpus();
+  if (ids.empty())
+  {
+    return cpus;
+  }
+
+  std::vector<Device> filtered;
+  for (auto &dev : cpus)
+  {
+    if (std::find(ids.begin(), ids.end(), dev.id()) != ids.end())
+    {
+      filtered.push_back(dev);
+    }
+  }
+
+  return filtered;
+}
+
+std::vector<Device> get_cpus(const std::vector<int> &ids);
+
 Device::Device() {}
 Device::Device(const bool cpu, const int id) : cpu_(cpu), id_(id) {}
 
@@ -270,4 +313,64 @@ bool Device::operator==(const Device &other) const
 bool Device::operator!=(const Device &other) const
 {
   return !((*this) == other);
+}
+
+bool option_as_ull(const int argc, char *const *const argv, const char *opt, unsigned long long &val)
+{
+  for (int i = 1; i < argc; ++i)
+  {
+    if (std::string(argv[i]) == std::string(opt))
+    {
+      ++i;
+      val = std::strtoull(argv[i], nullptr, 10);
+      return true;
+    }
+  }
+
+  return false;
+}
+
+bool option_as_int(const int argc, char *const *const argv, const char *opt, int &val)
+{
+  for (int i = 1; i < argc; ++i)
+  {
+    if (std::string(argv[i]) == std::string(opt))
+    {
+      ++i;
+      val = std::atoi(argv[i]);
+      return true;
+    }
+  }
+
+  return false;
+}
+
+bool option_as_int_list(const int argc, char *const *const argv, const char *opt, std::vector<int> &vals)
+{
+  for (int i = 1; i < argc; ++i)
+  {
+    if (std::string(argv[i]) == std::string(opt))
+    {
+      ++i;
+
+      std::string listStr(argv[i]);
+      std::stringstream ss(listStr);
+      std::string item;
+      std::vector<std::string> tokens;
+      while (getline(ss, item, ','))
+      {
+        tokens.push_back(item);
+      }
+
+      vals.clear();
+      for (const auto &tok : tokens)
+      {
+        vals.push_back(std::atoi(tok.c_str()));
+      }
+
+      return true;
+    }
+  }
+
+  return false;
 }

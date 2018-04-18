@@ -17,7 +17,7 @@
 #include "common/cuda_check.hpp"
 #include "common/common.hpp"
 
-static void pinned_bw(const Device &dst, const Device &src, const size_t count)
+static void pageable_bw(const Device &dst, const Device &src, const size_t count, const int numIters)
 {
 
   assert((src.is_cpu()) ^ (dst.is_cpu()));
@@ -55,8 +55,7 @@ static void pinned_bw(const Device &dst, const Device &src, const size_t count)
   }
 
   std::vector<double> times;
-  const size_t numIters = 20;
-  for (size_t i = 0; i < numIters; ++i)
+  for (int i = 0; i < numIters; ++i)
   {
     nvtxRangePush("dst");
     auto start = std::chrono::high_resolution_clock::now();
@@ -77,13 +76,41 @@ static void pinned_bw(const Device &dst, const Device &src, const size_t count)
   RT_CHECK(cudaFree(devPtr));
 }
 
-int main(void)
+int main(int argc, char **argv)
 {
+
+  int numIters = 10;
+  std::vector<int> gpuIds;
+  std::vector<int> numaIds;
+  if (option_as_int(argc, argv, "-n", numIters))
+  {
+    fprintf(stderr, "Using %d iterations\n", numIters);
+  }
+  if (option_as_int_list(argc, argv, "-c", numaIds))
+  {
+    fprintf(stderr, "Using CPU subset\n");
+  }
+  if (option_as_int_list(argc, argv, "-g", gpuIds))
+  {
+    fprintf(stderr, "Using GPU subset\n");
+  }
 
   const size_t numNodes = numa_max_node();
 
-  std::vector<Device> gpus = get_gpus();
-  std::vector<Device> cpus = get_cpus();
+  std::vector<Device> gpus = get_gpus(gpuIds);
+  std::vector<Device> cpus = get_cpus(numaIds);
+
+  if (gpus.empty())
+  {
+    fprintf(stderr, "no gpus\n");
+    return 1;
+  }
+
+  if (cpus.empty())
+  {
+    fprintf(stderr, "no cpus\n");
+    return 1;
+  }
 
   // print header
   printf("Transfer Size (MB)");
@@ -118,7 +145,7 @@ int main(void)
     {
       for (const auto gpu : gpus)
       {
-        pinned_bw(gpu, cpu, count);
+        pageable_bw(gpu, cpu, count, numIters);
       }
     }
     //gpu->cpu
@@ -126,7 +153,7 @@ int main(void)
     {
       for (const auto gpu : gpus)
       {
-        pinned_bw(cpu, gpu, count);
+        pageable_bw(cpu, gpu, count, numIters);
       }
     }
 
