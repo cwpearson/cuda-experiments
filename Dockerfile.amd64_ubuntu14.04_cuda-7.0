@@ -11,4 +11,5 @@ WORKDIR cuda-experiments
 
 ADD . ./
 
-RUN make
+RUN make \
+    && find . -name "*.o" -delete
