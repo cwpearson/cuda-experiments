@@ -95,8 +95,6 @@ int main(int argc, char **argv)
     fprintf(stderr, "Using GPU subset\n");
   }
 
-  const size_t numNodes = numa_max_node();
-
   std::vector<Device> gpus = get_gpus(gpuIds);
   std::vector<Device> cpus = get_cpus(numaIds);
 
