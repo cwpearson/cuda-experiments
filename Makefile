@@ -1,5 +1,3 @@
-include config.mk
-
 USE_THIRDPARTY=0
 
 NVCC = nvcc
