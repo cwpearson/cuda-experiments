@@ -16,7 +16,7 @@
 #include "common/cuda_check.hpp"
 #include "common/common.hpp"
 
-static void gpu_gpu_bw(const Device &dst, const Device &src, const size_t count)
+static void gpu_gpu_bw(const Device &dst, const Device &src, const size_t count, const int numIters)
 {
 
   assert(src.is_gpu() && dst.is_gpu());
@@ -43,8 +43,7 @@ static void gpu_gpu_bw(const Device &dst, const Device &src, const size_t count)
   }
 
   std::vector<double> times;
-  const size_t numIters = 20;
-  for (size_t i = 0; i < numIters; ++i)
+  for (int i = 0; i < numIters; ++i)
   {
     nvtxRangePush("dst");
     auto start = std::chrono::high_resolution_clock::now();
@@ -65,14 +64,21 @@ static void gpu_gpu_bw(const Device &dst, const Device &src, const size_t count)
   RT_CHECK(cudaFree(dstPtr));
 }
 
-int main(void)
+int main(int argc, char **argv)
 {
+  int numIters = 10;
+  std::vector<int> gpuIds;
+  if (option_as_int(argc, argv, "-n", numIters))
+  {
+    fprintf(stderr, "Using %d iterations\n", numIters);
+  }
 
-  const size_t numNodes = numa_max_node();
+  if (option_as_int_list(argc, argv, "-g", gpuIds))
+  {
+    fprintf(stderr, "Using GPU subset\n");
+  }
 
-  const long pageSize = sysconf(_SC_PAGESIZE);
-
-  std::vector<Device> gpus = get_gpus();
+  std::vector<Device> gpus = get_gpus(gpuIds);
 
   // print header
   printf("Transfer Size (MB)");
@@ -104,7 +110,7 @@ int main(void)
         if (src != dst)
         {
 
-          gpu_gpu_bw(dst, src, count);
+          gpu_gpu_bw(dst, src, count, numIters);
         }
       }
     }

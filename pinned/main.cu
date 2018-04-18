@@ -16,7 +16,7 @@
 #include "common/cuda_check.hpp"
 #include "common/common.hpp"
 
-static void pinned_bw(const Device &dst, const Device &src, const size_t count)
+static void pinned_bw(const Device &dst, const Device &src, const size_t count, const int numIters)
 {
 
   assert((src.is_cpu()) ^ (dst.is_cpu()));
@@ -51,8 +51,7 @@ static void pinned_bw(const Device &dst, const Device &src, const size_t count)
   }
 
   std::vector<double> times;
-  const size_t numIters = 20;
-  for (size_t i = 0; i < numIters; ++i)
+  for (int i = 0; i < numIters; ++i)
   {
     nvtxRangePush("dst");
     auto start = std::chrono::high_resolution_clock::now();
@@ -74,7 +73,6 @@ static void pinned_bw(const Device &dst, const Device &src, const size_t count)
 
 int main(int argc, char **argv)
 {
-
   int numIters = 10;
   std::vector<int> gpuIds;
   std::vector<int> numaIds;
@@ -139,7 +137,7 @@ int main(int argc, char **argv)
     {
       for (const auto gpu : gpus)
       {
-        pinned_bw(gpu, cpu, count);
+        pinned_bw(gpu, cpu, count, numIters);
       }
     }
     //gpu->cpu
@@ -147,7 +145,7 @@ int main(int argc, char **argv)
     {
       for (const auto gpu : gpus)
       {
-        pinned_bw(cpu, gpu, count);
+        pinned_bw(cpu, gpu, count, numIters);
       }
     }
 
