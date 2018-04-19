@@ -108,13 +108,14 @@ static void coherence_bw(const Device &dstDev, const Device &srcDev, const size_
     }
   }
 
-  if (srcDev.is_gpu())
-  {
-    RT_CHECK(cudaSetDevice(srcDev.cuda_device_id()));
-  }
   RT_CHECK(cudaMallocManaged(&ptr, count));
   std::memset(ptr, 0, count); // force pages to be allocated
 
+  // If dst is GPU, set that to be the active device before running
+  if (dstDev.is_gpu())
+  {
+    RT_CHECK(cudaSetDevice(dstDev.cuda_device_id()));
+  }
   std::vector<double> times;
   for (int i = 0; i < numIters; ++i)
   {
@@ -123,11 +124,6 @@ static void coherence_bw(const Device &dstDev, const Device &srcDev, const size_
     RT_CHECK(cudaMemPrefetchAsync(ptr, count, srcDev.cuda_device_id()));
     RT_CHECK(cudaDeviceSynchronize());
     nvtxRangePop();
-
-    if (dstDev.is_gpu())
-    {
-      RT_CHECK(cudaSetDevice(dstDev.cuda_device_id()));
-    }
 
     // Access from destination and Time
     nvtxRangePush("dst");
