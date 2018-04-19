@@ -6,6 +6,7 @@
 #include <vector>
 #include <algorithm>
 #include <numeric>
+#include <cstring>
 
 #include <nvToolsExt.h>
 
@@ -75,27 +76,10 @@ __global__ void gpu_write(data_type *ptr, const size_t count, const size_t strid
   }
 }
 
-static void prefetch_bw(const Device &dstDev, const Device &srcDev, const size_t count, const size_t stride, const int numIters)
+static void coherence_bw(const Device &dstDev, const Device &srcDev, const size_t count, const size_t stride, const int numIters)
 {
 
   assert(!(srcDev.is_cpu() && dstDev.is_cpu()));
-
-  if (srcDev.is_gpu())
-  {
-    RT_CHECK(cudaSetDevice(srcDev.cuda_device_id()));
-    RT_CHECK(cudaFree(0));
-  }
-
-  if (dstDev.is_gpu())
-  {
-    RT_CHECK(cudaSetDevice(dstDev.cuda_device_id()));
-    RT_CHECK(cudaFree(0));
-  }
-
-  if (srcDev.is_gpu())
-  {
-    RT_CHECK(cudaSetDevice(srcDev.cuda_device_id()));
-  }
 
   // Determine grid dimensions
   dim3 blockDim(256);
@@ -124,10 +108,15 @@ static void prefetch_bw(const Device &dstDev, const Device &srcDev, const size_t
     }
   }
 
+  if (srcDev.is_gpu())
+  {
+    RT_CHECK(cudaSetDevice(srcDev.cuda_device_id()));
+  }
   RT_CHECK(cudaMallocManaged(&ptr, count));
+  std::memset(ptr, 0, count); // force pages to be allocated
 
   std::vector<double> times;
-  for (size_t i = 0; i < numIters; ++i)
+  for (int i = 0; i < numIters; ++i)
   {
     // Try to get allocation on source
     nvtxRangePush("prefetch to src");
@@ -159,7 +148,7 @@ static void prefetch_bw(const Device &dstDev, const Device &srcDev, const size_t
   }
 
   const double minTime = *std::min_element(times.begin(), times.end());
-  const double avgTime = std::accumulate(times.begin(), times.end(), 0.0) / times.size();
+  // const double avgTime = std::accumulate(times.begin(), times.end(), 0.0) / times.size();
 
   printf(",%.2f", count / 1024.0 / 1024.0 / minTime);
   RT_CHECK(cudaFree(ptr));
@@ -210,7 +199,7 @@ int main(int argc, char **argv)
       {
         if (src != dst && !(src.is_cpu() && dst.is_cpu()))
         {
-          prefetch_bw(dst, src, count, pageSize, numIters);
+          coherence_bw(dst, src, count, pageSize, numIters);
         }
       }
     }
