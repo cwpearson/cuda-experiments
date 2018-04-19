@@ -1,46 +1,31 @@
+#include <algorithm>
+#include <chrono>
 #include <cstdio>
 #include <cstdlib>
-#include <sstream>
-#include <chrono>
-#include <vector>
-#include <algorithm>
+#include <cstring>
 #include <numeric>
+#include <sstream>
+#include <vector>
 
 #include <nvToolsExt.h>
 
-#include <unistd.h>
-
-#include "common/cuda_check.hpp"
 #include "common/common.hpp"
+#include "common/cuda_check.hpp"
 
-static void prefetch_bw(const Device &dstDev, const Device &srcDev, const size_t count)
-{
+static void prefetch_bw(const Device &dstDev, const Device &srcDev,
+                        const size_t count, const int numIters) {
 
-  if (srcDev.is_gpu())
-  {
-    RT_CHECK(cudaSetDevice(srcDev.cuda_device_id()));
-    RT_CHECK(cudaFree(0));
-  }
-
-  if (dstDev.is_gpu())
-  {
-    RT_CHECK(cudaSetDevice(dstDev.cuda_device_id()));
-    RT_CHECK(cudaFree(0));
-  }
-
-  if (srcDev.is_gpu())
-  {
-    RT_CHECK(cudaSetDevice(srcDev.cuda_device_id()));
+  // If srd is a CPU, make sure ptr is allocted on that cpu
+  if (srcDev.is_cpu()) {
+    bind_cpu(srcDev);
   }
 
   void *ptr;
-
   RT_CHECK(cudaMallocManaged(&ptr, count));
+  std::memset(ptr, 0, count);
 
   std::vector<double> times;
-  const size_t numIters = 20;
-  for (size_t i = 0; i < numIters; ++i)
-  {
+  for (size_t i = 0; i < numIters; ++i) {
     // Try to get allocation on source
     nvtxRangePush("move to src");
     RT_CHECK(cudaMemPrefetchAsync(ptr, count, srcDev.cuda_device_id()));
@@ -59,52 +44,35 @@ static void prefetch_bw(const Device &dstDev, const Device &srcDev, const size_t
   }
 
   const double minTime = *std::min_element(times.begin(), times.end());
-  const double avgTime = std::accumulate(times.begin(), times.end(), 0.0) / times.size();
+  const double avgTime =
+      std::accumulate(times.begin(), times.end(), 0.0) / times.size();
 
   printf(",%.2f", count / 1024.0 / 1024.0 / (minTime));
 
   RT_CHECK(cudaFree(ptr));
 }
 
-int main(void)
-{
-  const long pageSize = sysconf(_SC_PAGESIZE);
+int main(int argc, char **argv) {
+  int numIters = 10;
+  std::vector<int> numaIds, gpuIds;
+  option_as_int(argc, argv, "-n", numIters);
+  option_as_int_list(argc, argv, "-c", numaIds);
+  option_as_int_list(argc, argv, "-g", gpuIds);
 
-  int numDevs;
-  RT_CHECK(cudaGetDeviceCount(&numDevs));
-
-  std::vector<int> devIds;
-  auto cpus = get_cpus();
-  auto gpus = get_gpus();
+  auto gpus = get_gpus(gpuIds);
+  auto cpus = get_cpus(numaIds);
   auto devs = cpus;
-  for (const auto g : gpus)
-  {
+  for (const auto g : gpus) {
     devs.push_back(g);
   }
 
-  size_t freeMem = -1ul;
-  for (auto d : devs)
-  {
-    if (d.is_gpu())
-    {
-      size_t fr, to;
-      RT_CHECK(cudaMemGetInfo(&fr, &to));
-
-      if (fr < freeMem)
-      {
-        freeMem = fr;
-      }
-    }
-  }
+  size_t freeMem = free_memory(devs);
 
   // print header
   printf("Transfer Size (MB),");
-  for (const auto src : devs)
-  {
-    for (const auto dst : devs)
-    {
-      if (src != dst && (src.is_gpu() || dst.is_gpu()))
-      {
+  for (const auto src : devs) {
+    for (const auto dst : devs) {
+      if (src != dst && (src.is_gpu() || dst.is_gpu())) {
         printf("%s to %s (prefetch),", src.name().c_str(), dst.name().c_str());
       }
     }
@@ -114,16 +82,12 @@ int main(void)
   auto counts = Sequence::geometric(2048, freeMem, 2) |
                 Sequence::geometric(2048 * 1.5, freeMem, 2);
 
-  for (auto count : counts)
-  {
+  for (auto count : counts) {
     printf("%f", count / 1024.0 / 1024.0);
-    for (const auto src : devs)
-    {
-      for (const auto dst : devs)
-      {
-        if (src != dst && (src.is_gpu() || dst.is_gpu()))
-        {
-          prefetch_bw(dst, src, count);
+    for (const auto src : devs) {
+      for (const auto dst : devs) {
+        if (src != dst && (src.is_gpu() || dst.is_gpu())) {
+          prefetch_bw(dst, src, count, numIters);
         }
       }
     }
