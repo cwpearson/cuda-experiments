@@ -5,11 +5,8 @@
 #include <chrono>
 #include <vector>
 #include <algorithm>
-#include <numeric>
 
 #include <nvToolsExt.h>
-
-#include <unistd.h>
 
 #include "common/cuda_check.hpp"
 #include "common/common.hpp"
@@ -46,7 +43,7 @@ void cpu_traverse(size_t *ptr, const size_t steps)
   ptr[next] = 1;
 }
 
-static void coherence_latency(const Device &dst, const Device &src, const size_t steps)
+static void coherence_latency(const Device &dst, const Device &src, const size_t steps, const int numIters)
 {
 
   assert(src.is_gpu() || dst.is_gpu());
@@ -91,8 +88,7 @@ static void coherence_latency(const Device &dst, const Device &src, const size_t
   RT_CHECK(cudaDeviceSynchronize());
 
   std::vector<double> managedTimes, explicitTimes;
-  const size_t numIters = 20;
-  for (size_t i = 0; i < numIters; ++i)
+  for (int i = 0; i < numIters; ++i)
   {
     // Try to get allocation on source
     nvtxRangePush("prefetch to src");
@@ -160,13 +156,17 @@ static void coherence_latency(const Device &dst, const Device &src, const size_t
   RT_CHECK(cudaFree(managedPtr));
 }
 
-int main(void)
+int main(int argc, char **argv)
 {
+  int numIters = 10;
+  std::vector<int> numaIds, gpuIds;
+  option_as_int(argc, argv, "-n", numIters);
+  option_as_int_list(argc, argv, "-c", numaIds);
+  option_as_int_list(argc, argv, "-g", gpuIds);
 
-  const long pageSize = sysconf(_SC_PAGESIZE);
+  auto gpus = get_gpus(gpuIds);
+  auto cpus = get_cpus(numaIds);
 
-  std::vector<Device> gpus = get_gpus();
-  std::vector<Device> cpus = get_cpus();
   std::vector<Device> devs;
   for (const auto &d : gpus)
   {
@@ -202,7 +202,7 @@ int main(void)
       {
         if (src != dst && (src.is_gpu() || dst.is_gpu()))
         {
-          coherence_latency(dst, src, numSteps);
+          coherence_latency(dst, src, numSteps, numIters);
         }
       }
     }
