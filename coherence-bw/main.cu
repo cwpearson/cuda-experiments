@@ -82,7 +82,7 @@ static void coherence_bw(const Device &dstDev, const Device &srcDev, const size_
   assert(!(srcDev.is_cpu() && dstDev.is_cpu()));
 
   // Determine grid dimensions
-  dim3 blockDim(256);
+  dim3 blockDim(128);
   const size_t numStrides = (count + stride - 1) / stride;
   dim3 gridDim((numStrides + blockDim.x - 1) / blockDim.x);
 
