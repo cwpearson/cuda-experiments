@@ -88,7 +88,7 @@ static void coherence_bw(const Device &dstDev, const Device &srcDev, const size_
 
   void *ptr;
 
-  // bind to non-cuda device, if present, before allocation or running
+  // if the source is a CPU, make it active before allocation
   if (srcDev.is_cpu())
   {
     bind_cpu(srcDev);
@@ -98,7 +98,13 @@ static void coherence_bw(const Device &dstDev, const Device &srcDev, const size_
       bind_cpu(srcDev);
     }
   }
-  else if (dstDev.is_cpu())
+
+  // Allocate and touch pages
+  RT_CHECK(cudaMallocManaged(&ptr, count));
+  std::memset(ptr, 0, count);
+
+  // Make destination device active if CPU or GPU
+  if (dstDev.is_cpu())
   {
     bind_cpu(dstDev);
     omp_set_num_threads(get_num_cpus(dstDev));
@@ -107,15 +113,11 @@ static void coherence_bw(const Device &dstDev, const Device &srcDev, const size_
       bind_cpu(dstDev);
     }
   }
-
-  RT_CHECK(cudaMallocManaged(&ptr, count));
-  std::memset(ptr, 0, count); // force pages to be allocated
-
-  // If dst is GPU, set that to be the active device before running
-  if (dstDev.is_gpu())
+  else
   {
     RT_CHECK(cudaSetDevice(dstDev.cuda_device_id()));
   }
+
   std::vector<double> times;
   for (int i = 0; i < numIters; ++i)
   {
