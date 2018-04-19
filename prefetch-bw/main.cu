@@ -18,6 +18,8 @@ static void prefetch_bw(const Device &dstDev, const Device &srcDev,
   // If srd is a CPU, make sure ptr is allocted on that cpu
   if (srcDev.is_cpu()) {
     bind_cpu(srcDev);
+  } else { // associate allocation with src device if GPU
+    RT_CHECK(cudaSetDevice(srcDev.cuda_device_id()));
   }
 
   void *ptr;
