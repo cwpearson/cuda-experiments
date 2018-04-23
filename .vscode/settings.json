@@ -1,8 +1,8 @@
 {
     "files.associations": {
+        "*.cuh": "cpp",
         "*.cu": "cpp",
         "*.hu": "cpp",
-        "*.cuh": "cpp",
         "cctype": "cpp",
         "clocale": "cpp",
         "cmath": "cpp",
@@ -39,7 +39,8 @@
         "type_traits": "cpp",
         "typeinfo": "cpp",
         "utility": "cpp",
-        "algorithm": "cpp"
+        "algorithm": "cpp",
+        "*.ipp": "cpp"
     },
     "editor.formatOnSave": true
 }
