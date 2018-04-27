@@ -5,6 +5,7 @@
 #include <chrono>
 #include <vector>
 #include <algorithm>
+#include <numeric>
 
 #include <nvToolsExt.h>
 

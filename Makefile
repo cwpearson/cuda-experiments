@@ -22,6 +22,7 @@ MODULES += common \
 	access-counters \
 	atomics \
 	atomics.1 \
+	contention-pinned \
 	cpu-cpu \
 	cpu-cpu-df \
 	ctx \
@@ -62,6 +63,9 @@ endif
 #NVCCFLAGS += $(patsubst %,-I%,$(MODULES)) -I. -lineinfo
 NVCCFLAGS += -I. -lineinfo -Wno-deprecated-gpu-targets
 CXXFLAGS += -I.
+ifdef HOST_COMPILER
+	NVCCFLAGS += -ccbin=$(HOST_COMPILER)
+endif
 
 ifeq ($(USE_THIRDPARTY),1)
 NVCCFLAGS += -Ithirdparty/include
