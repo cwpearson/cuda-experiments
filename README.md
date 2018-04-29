@@ -39,6 +39,10 @@ https://devblogs.nvidia.com/maximizing-unified-memory-performance-cuda/
 
 https://devblogs.nvidia.com/maximizing-unified-memory-performance-cuda/
 
+## mgbench
+
+https://github.com/tbennun/mgbench
+
 ## To-dos:
 
 Check write performance impact of set read mostly, with increasing number of GPUs that have a read-only copy of the page.
