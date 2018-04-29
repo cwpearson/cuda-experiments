@@ -41,6 +41,6 @@ https://devblogs.nvidia.com/maximizing-unified-memory-performance-cuda/
 
 ## Other Benchmarks
 
-(mgbench)[https://github.com/tbennun/mgbench]
-(blackjackbench)[https://sourceforge.net/projects/blackjackbench/]
+[mgbench](https://github.com/tbennun/mgbench)
+[blackjackbench](https://sourceforge.net/projects/blackjackbench/)
 
