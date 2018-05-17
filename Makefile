@@ -37,6 +37,7 @@ MODULES += common \
 	std-memcpy \
 	std-memcpy-df \
 	um-cc35-bw \
+	util \
 	wc
 
 ifeq ($(NVCC_GTE_9),1)
