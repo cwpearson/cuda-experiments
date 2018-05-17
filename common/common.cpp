@@ -292,8 +292,6 @@ std::vector<Device> get_cpus(const std::vector<int> &ids)
   return filtered;
 }
 
-std::vector<Device> get_cpus(const std::vector<int> &ids);
-
 Device::Device() {}
 Device::Device(const bool cpu, const int id) : cpu_(cpu), id_(id) {}
 

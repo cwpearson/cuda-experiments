@@ -28,6 +28,7 @@ std::vector<Device> get_gpus();
 std::vector<Device> get_cpus();
 std::vector<Device> get_gpus(const std::vector<int> &ids);
 std::vector<Device> get_cpus(const std::vector<int> &ids);
+
 void bind_cpu(const Device &d);
 size_t num_cpus(const Device &d);
 size_t num_mps(const Device &d);

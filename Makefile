@@ -1,6 +1,6 @@
 USE_THIRDPARTY=0
 
-NVCC = nvcc
+NVCC = nvcc -ccbin=$(CXX)
 
 #NVCC_VER_MAJOR := $(shell nvcc -V | grep -oP "release \K([0-9]{1,}\.)+[0-9]{1,}")
 NVCC_VER_MAJOR := $(shell nvcc -V | grep -oP "release \K([0-9])")
@@ -33,6 +33,7 @@ MODULES += common \
 	pageable \
 	page-to-pin \
 	pinned \
+	pinned-df \
 	std-memcpy \
 	std-memcpy-df \
 	um-cc35-bw \
