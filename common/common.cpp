@@ -183,7 +183,7 @@ size_t free_memory(const std::vector<Device> &devs)
     {
       long long freep;
       numa_node_size64(d.id(), &freep);
-      freeMem = freep < freeMem ? freep : freeMem;
+      freeMem = size_t(freep) < freeMem ? freep : freeMem;
     }
     else if (d.is_gpu())
     {

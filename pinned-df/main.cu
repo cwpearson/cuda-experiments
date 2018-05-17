@@ -239,7 +239,7 @@ static void pinned_bw(const Device &dst, const Device &src, const size_t count, 
     auto end = std::chrono::high_resolution_clock::now();
     std::chrono::duration<double> txSeconds = end - start;
     nvtxRangePop();
-    printf("%s,%s,%d,%.5f\n", src.name().c_str(), dst.name().c_str(),count,txSeconds.count());
+    printf("%s,%s,%lu,%.5f\n", src.name().c_str(), dst.name().c_str(),count,txSeconds.count());
   }
 
   RT_CHECK(cudaFreeHost(hostPtr));
@@ -262,7 +262,7 @@ int main(int argc, char **argv)
   }
   if (option_as_int(argc, argv, "--src-numa", src_id))
   {
-    fprintf(stderr, "Using src CPU\n");
+    fprintf(stderr, "Using src CPU %d\n", src_id);
     src_is_cpu = true;
   }
   if (option_as_int(argc, argv, "--src-gpu", src_id))
@@ -299,9 +299,6 @@ int main(int argc, char **argv)
   auto dst = dsts[0];
   assert(src.is_cpu() ^ dst.is_cpu());
   auto gpus = src.is_cpu() ? dsts : srcs;
-
-  // print header
-  printf("src,dst,count,time\n");
 
   auto freeMem = gpu_free_memory(gpus);
   auto counts = Sequence::geometric(2048, freeMem, 2) |

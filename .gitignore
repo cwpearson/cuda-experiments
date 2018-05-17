@@ -9,6 +9,9 @@
 **/*.o
 results
 
+util/lscpu
+util/lsgpu
+
 thirdparty/include
 thirdparty/lib
 thirdparty/share
