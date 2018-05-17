@@ -20,22 +20,23 @@
 #include <vector>
 #include <cstring>
 
-
-#define RT_RET(ans) \
-{ \
-    err = (ans); \
-    if (err != cudaSuccess) { \
-        goto cleanup; \
-    } \
-}
+#define RT_RET(ans)         \
+  {                         \
+    err = (ans);            \
+    if (err != cudaSuccess) \
+    {                       \
+      goto cleanup;         \
+    }                       \
+  }
 
 cudaError_t micro_cuda_memcpy_async(
-  float *millis, // milliseconds to complete all transfers
-  char * const * const srcPtrs, // source pointers, one per transfer
-  char **dstPtrs, // destination pointers, one per transfer
-  const size_t count, // transfer size
-  const size_t n // number of transfers
-) {
+    float *millis,              // milliseconds to complete all transfers
+    char *const *const srcPtrs, // source pointers, one per transfer
+    char **dstPtrs,             // destination pointers, one per transfer
+    const size_t count,         // transfer size
+    const size_t n              // number of transfers
+)
+{
   cudaError_t err = cudaSuccess;
 
   // Set up stream and event for each transfer
@@ -47,7 +48,7 @@ cudaError_t micro_cuda_memcpy_async(
     cudaStream_t stream;
     RT_RET(cudaStreamCreate(&stream));
     streams.push_back(stream);
-  
+
     cudaEvent_t startEvent;
     cudaEvent_t endEvent;
     RT_RET(cudaEventCreate(&startEvent));
@@ -70,32 +71,35 @@ cudaError_t micro_cuda_memcpy_async(
   }
 
   // Wait for memcpys to finish
-  for (size_t i = 0; i < n; ++i) {
+  for (size_t i = 0; i < n; ++i)
+  {
     auto endEvent = endEvents[i];
     RT_RET(cudaEventSynchronize(endEvent));
   }
 
   // Get the longest time between start and end events
   {
-  float maxRuntime = 0.0;
-  for (size_t startIdx = 0; startIdx < n; ++startIdx) {
-    for (size_t endIdx = 0; endIdx < n; ++endIdx)
+    float maxRuntime = 0.0;
+    for (size_t startIdx = 0; startIdx < n; ++startIdx)
     {
-      float runtime = 0.0f;
-      auto startEvent = startEvents[startIdx];
-      auto endEvent = endEvents[endIdx];
-      RT_RET(cudaEventSynchronize(endEvent));
-      RT_RET(cudaEventElapsedTime(&runtime, startEvent, endEvent));
-      if (runtime > maxRuntime) {
-        maxRuntime = runtime;
+      for (size_t endIdx = 0; endIdx < n; ++endIdx)
+      {
+        float runtime = 0.0f;
+        auto startEvent = startEvents[startIdx];
+        auto endEvent = endEvents[endIdx];
+        RT_RET(cudaEventSynchronize(endEvent));
+        RT_RET(cudaEventElapsedTime(&runtime, startEvent, endEvent));
+        if (runtime > maxRuntime)
+        {
+          maxRuntime = runtime;
+        }
       }
     }
+    *millis = maxRuntime;
   }
-  *millis = maxRuntime;
-}
 
-  // free resources
-  cleanup:
+// free resources
+cleanup:
   for (auto e : startEvents)
   {
     cudaEventDestroy(e);
@@ -115,8 +119,9 @@ cudaError_t micro_pageable(float *millis,
                            int src_is_host,
                            int dst_is_host,
                            const int gpu,
-                           const size_t count, 
-                           const int full_duplex) {
+                           const size_t count,
+                           const int full_duplex)
+{
   cudaError_t err = cudaSuccess;
 
   // Set up allocations
@@ -127,20 +132,26 @@ cudaError_t micro_pageable(float *millis,
   char *dstPtr = nullptr;
 
   // first allocation (src to dst)
-  if (src_is_host) {
-    srcPtr = (char*)malloc(count);
+  if (src_is_host)
+  {
+    srcPtr = (char *)malloc(count);
     std::memset(srcPtr, 0, count);
     frees.push_back(srcPtr);
-  } else {
+  }
+  else
+  {
     RT_RET(cudaSetDevice(gpu));
     RT_RET(cudaMalloc(&srcPtr, count));
     cudaFrees.push_back(srcPtr);
   }
-  if (dst_is_host) {
-    dstPtr = (char*)malloc(count);
+  if (dst_is_host)
+  {
+    dstPtr = (char *)malloc(count);
     std::memset(srcPtr, 0, count);
     frees.push_back(dstPtr);
-  } else {
+  }
+  else
+  {
     RT_RET(cudaSetDevice(gpu));
     RT_RET(cudaMalloc(&dstPtr, count));
     cudaFrees.push_back(dstPtr);
@@ -149,21 +160,28 @@ cudaError_t micro_pageable(float *millis,
   dstPtrs.push_back(dstPtr);
 
   // full-duplex allocation (dst to src)
-  if (full_duplex) {
-    if (src_is_host) {
-      srcPtr = (char*)malloc(count);
+  if (full_duplex)
+  {
+    if (src_is_host)
+    {
+      srcPtr = (char *)malloc(count);
       std::memset(srcPtr, 0, count);
       frees.push_back(srcPtr);
-    } else {
+    }
+    else
+    {
       RT_RET(cudaSetDevice(gpu));
       RT_RET(cudaMalloc(&srcPtr, count));
       cudaFrees.push_back(srcPtr);
     }
-    if (dst_is_host) {
-      dstPtr = (char*)malloc(count);
+    if (dst_is_host)
+    {
+      dstPtr = (char *)malloc(count);
       std::memset(srcPtr, 0, count);
       frees.push_back(dstPtr);
-    } else {
+    }
+    else
+    {
       RT_RET(cudaSetDevice(gpu));
       RT_RET(cudaMalloc(&dstPtr, count));
       cudaFrees.push_back(dstPtr);
@@ -174,15 +192,14 @@ cudaError_t micro_pageable(float *millis,
 
   // run the benchmark
   RT_RET(micro_cuda_memcpy_async(
-    millis, 
-    srcPtrs.data(), 
-    dstPtrs.data(),
-    count,
-    srcPtrs.size())
-  );
+      millis,
+      srcPtrs.data(),
+      dstPtrs.data(),
+      count,
+      srcPtrs.size()));
 
-  // free resources
-  cleanup:
+// free resources
+cleanup:
   for (auto p : cudaFrees)
   {
     cudaFree(p);
@@ -191,10 +208,8 @@ cudaError_t micro_pageable(float *millis,
   {
     free(p);
   }
-    return err;
+  return err;
 }
-
-
 
 static void pinned_bw(const Device &dst, const Device &src, const size_t count, const int numIters)
 {
@@ -239,7 +254,7 @@ static void pinned_bw(const Device &dst, const Device &src, const size_t count, 
     auto end = std::chrono::high_resolution_clock::now();
     std::chrono::duration<double> txSeconds = end - start;
     nvtxRangePop();
-    printf("%s,%s,%lu,%.5f\n", src.name().c_str(), dst.name().c_str(),count,txSeconds.count());
+    printf("%s,%s,%lu,%.5f\n", src.name().c_str(), dst.name().c_str(), count, txSeconds.count());
   }
 
   RT_CHECK(cudaFreeHost(hostPtr));
@@ -301,8 +316,8 @@ int main(int argc, char **argv)
   auto gpus = src.is_cpu() ? dsts : srcs;
 
   auto freeMem = gpu_free_memory(gpus);
-  auto counts = Sequence::geometric(2048, freeMem, 2) |
-                Sequence::geometric(2048 * 1.5, freeMem, 2);
+  auto counts = Sequence::geometric(256 * 1024, freeMem, 2) |
+                Sequence::geometric(256 * 1024 * 1.5, freeMem, 2);
 
   for (auto count : counts)
   {
