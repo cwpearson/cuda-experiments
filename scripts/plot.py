@@ -10,7 +10,16 @@ import pandas as pd
 with open(sys.argv[1]) as f:
     df = pd.read_csv(f)
 
+# compute bandwidth
 df['bw'] = df['count'] / df['time']
+
+# unique src, dst values
+
+srcs = df['src'].unique()
+dsts = df['dst'].unique()
+
+df = df.loc[df['src'] == srcs[0]]
+df = df.loc[df['dst'] == dsts[0]]
 
 print(df)
 
